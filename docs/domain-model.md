@@ -10,6 +10,8 @@ Event
 - name
 - startsAt
 - status
+- createdAt
+- updatedAt
 ```
 
 Estados sugeridos:
@@ -36,6 +38,7 @@ Seat
 - row
 - number
 - price
+- currency
 - status
 - version
 ```

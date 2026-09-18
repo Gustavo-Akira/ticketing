@@ -14,6 +14,8 @@ class EventDomainTest {
     void newEventStartsAsDraftWithItsOwnIdentity() {
         var event = new Event("Concert", START);
         assertThat(event.getId()).isNotNull();
+        assertThat(event.getId().version()).isEqualTo(7);
+        assertThat(event.getId().variant()).isEqualTo(2);
         assertThat(event.getId()).isNotEqualTo(new Event("Concert", START).getId());
         assertThat(event.getName()).isEqualTo("Concert");
         assertThat(event.getStartsAt()).isEqualTo(START);

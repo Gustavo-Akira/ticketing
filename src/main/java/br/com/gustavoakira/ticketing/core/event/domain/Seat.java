@@ -1,5 +1,6 @@
 package br.com.gustavoakira.ticketing.core.event.domain;
 
+import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -10,6 +11,7 @@ import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.UUID;
+import java.util.Currency;
 
 @Entity
 @Table(name = "seats")
@@ -32,6 +34,9 @@ public class Seat {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
 
+    @Column(nullable = false, length = 3)
+    private String currency;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private SeatStatus status;
@@ -42,13 +47,14 @@ public class Seat {
 
     protected Seat() {}
 
-    public Seat(UUID eventId, String section, String row, String number, BigDecimal price) {
-        this.id = UUID.randomUUID();
+    public Seat(UUID eventId, String section, String row, String number, BigDecimal price, String currency) {
+        this.id = UuidCreator.getTimeOrderedEpoch();
         this.eventId = Fields.required(eventId, "eventId");
         this.section = Fields.text(section, "section", 100);
         this.row = Fields.text(row, "row", 50);
         this.number = Fields.text(number, "number", 20);
         this.price = validatedPrice(price);
+        this.currency = Currency.getInstance(Fields.required(currency, "currency")).getCurrencyCode();
         this.status = SeatStatus.AVAILABLE;
     }
 
@@ -70,6 +76,7 @@ public class Seat {
     public String getRow() { return row; }
     public String getNumber() { return number; }
     public BigDecimal getPrice() { return price; }
+    public String getCurrency() { return currency; }
     public SeatStatus getStatus() { return status; }
     public Long getVersion() { return version; }
 }

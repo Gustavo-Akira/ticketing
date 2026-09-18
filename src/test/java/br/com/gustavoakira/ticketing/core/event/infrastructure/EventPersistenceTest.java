@@ -37,7 +37,7 @@ class EventPersistenceTest {
     void migrationsCreateSchemaAndRepositoriesRoundTripAllFields() {
         assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success", Integer.class)).isPositive();
         var event = events.saveAndFlush(new Event("Concert", Instant.parse("2027-01-10T20:00:00Z")));
-        var seat = seats.saveAndFlush(new Seat(event.getId(), "Floor", "A", "15", new BigDecimal("120.50")));
+        var seat = seats.saveAndFlush(new Seat(event.getId(), "Floor", "A", "15", new BigDecimal("120.50"), "BRL"));
         entityManager.clear();
 
         var storedEvent = events.findById(event.getId()).orElseThrow();
@@ -50,8 +50,50 @@ class EventPersistenceTest {
         assertThat(storedSeat.getRow()).isEqualTo("A");
         assertThat(storedSeat.getNumber()).isEqualTo("15");
         assertThat(storedSeat.getPrice()).isEqualByComparingTo("120.50");
+        assertThat(storedSeat.getCurrency()).isEqualTo("BRL");
         assertThat(storedSeat.getStatus()).isEqualTo(SeatStatus.AVAILABLE);
         assertThat(storedSeat.getVersion()).isZero();
+    }
+
+    @Test
+    void auditTimestampsAreGeneratedOnInsertAndSurviveReload() {
+        var event = event();
+        assertThat(event.getCreatedAt()).isNotNull();
+        assertThat(event.getUpdatedAt()).isEqualTo(event.getCreatedAt());
+        entityManager.clear();
+        var stored = events.findById(event.getId()).orElseThrow();
+        assertThat(stored.getCreatedAt()).isEqualTo(event.getCreatedAt());
+        assertThat(stored.getUpdatedAt()).isEqualTo(event.getUpdatedAt());
+    }
+
+    @Test
+    void sqlUpdatesAdvanceAuditTimeAndCannotRewriteCreationTime() {
+        var event = event();
+        var createdAt = event.getCreatedAt();
+        var updatedAt = event.getUpdatedAt();
+        jdbc.update("update events set name = ?, created_at = '2000-01-01', updated_at = '2000-01-01' where id = ?", "Renamed", event.getId());
+        entityManager.clear();
+        var stored = events.findById(event.getId()).orElseThrow();
+        assertThat(stored.getName()).isEqualTo("Renamed");
+        assertThat(stored.getCreatedAt()).isEqualTo(createdAt);
+        assertThat(stored.getUpdatedAt()).isAfter(updatedAt);
+    }
+
+    @Test
+    void eventScopedLookupCanUseExistingLeadingColumnIndex() {
+        // Tiny fixtures often favor a sequential scan. Disable it only in this
+        // transaction to verify index eligibility, not to claim a load benchmark.
+        jdbc.execute("set local enable_seqscan = off");
+        var plan = jdbc.queryForList("explain (costs off) select * from seats where event_id = ?", String.class, UUID.randomUUID());
+        assertThat(String.join("\n", plan)).contains("uk_seats_event_location", "Index Cond:", "event_id");
+    }
+
+    @Test
+    void postgresUuidOrderingMatchesNewEventCreationOrder() {
+        var first = event();
+        var second = event();
+        assertThat(jdbc.queryForList("select id from events where id in (?, ?) order by id", UUID.class, first.getId(), second.getId()))
+                .containsExactly(first.getId(), second.getId());
     }
 
     @Test
@@ -106,7 +148,7 @@ class EventPersistenceTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"price = -0.01", "status = 'INVALID'", "section = ''", "seat_row = ' '", "seat_number = ''", "version = -1", "event_id = null"})
+    @ValueSource(strings = {"price = -0.01", "status = 'INVALID'", "section = ''", "seat_row = ' '", "seat_number = ''", "version = -1", "event_id = null", "currency = null", "currency = 'brl'", "currency = 'US'", "currency = '123'"})
     void databaseRejectsInvalidSeatsEvenWhenBypassingDomain(String assignment) {
         var seat = seats.saveAndFlush(seat(event().getId()));
         assertThatThrownBy(() -> jdbc.update("update seats set " + assignment + " where id = ?", seat.getId()))
@@ -126,6 +168,6 @@ class EventPersistenceTest {
     }
 
     private Seat seat(UUID eventId) {
-        return new Seat(eventId, "Floor", "A", "15", new BigDecimal("120.50"));
+        return new Seat(eventId, "Floor", "A", "15", new BigDecimal("120.50"), "BRL");
     }
 }
