@@ -67,16 +67,31 @@ class EventPersistenceTest {
     }
 
     @Test
-    void sqlUpdatesAdvanceAuditTimeAndCannotRewriteCreationTime() {
+    void auditTimeIsUpdatedExplicitlyByTheQuery() {
         var event = event();
         var createdAt = event.getCreatedAt();
-        var updatedAt = event.getUpdatedAt();
-        jdbc.update("update events set name = ?, created_at = '2000-01-01', updated_at = '2000-01-01' where id = ?", "Renamed", event.getId());
+        var audit = jdbc.queryForMap("""
+                update events set name = ?, updated_at = statement_timestamp() where id = ?
+                returning updated_at, statement_timestamp() as statement_time
+                """, "Renamed", event.getId());
+        assertThat(audit.get("updated_at")).isEqualTo(audit.get("statement_time"));
+        var updatedAt = ((java.sql.Timestamp) audit.get("updated_at")).toInstant();
         entityManager.clear();
         var stored = events.findById(event.getId()).orElseThrow();
         assertThat(stored.getName()).isEqualTo("Renamed");
         assertThat(stored.getCreatedAt()).isEqualTo(createdAt);
-        assertThat(stored.getUpdatedAt()).isAfter(updatedAt);
+        assertThat(stored.getUpdatedAt()).isEqualTo(updatedAt);
+    }
+
+    @Test
+    void updateWithoutAuditAssignmentHasNoHiddenTimestampSideEffect() {
+        var event = event();
+        jdbc.update("update events set name = ? where id = ?", "Renamed", event.getId());
+        entityManager.clear();
+        var stored = events.findById(event.getId()).orElseThrow();
+        assertThat(stored.getName()).isEqualTo("Renamed");
+        assertThat(stored.getCreatedAt()).isEqualTo(event.getCreatedAt());
+        assertThat(stored.getUpdatedAt()).isEqualTo(event.getUpdatedAt());
     }
 
     @Test
@@ -133,7 +148,7 @@ class EventPersistenceTest {
     @EnumSource(EventStatus.class)
     void eventStatusesRoundTripByName(EventStatus status) {
         var event = event();
-        jdbc.update("update events set status = ? where id = ?", status.name(), event.getId());
+        jdbc.update("update events set status = ?, updated_at = statement_timestamp() where id = ?", status.name(), event.getId());
         entityManager.clear();
         assertThat(events.findById(event.getId()).orElseThrow().getStatus()).isEqualTo(status);
     }

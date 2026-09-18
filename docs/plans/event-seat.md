@@ -35,11 +35,14 @@ event foreign key and unique (event, section, row, number).
 ### Follow-up da revisão
 
 - Novos IDs Event/Seat usam UUIDv7; UUIDs preexistentes permanecem válidos.
-- A V2 adiciona auditoria de Event mantida por trigger do PostgreSQL e moeda
+- A V2 adiciona timestamps de Event e moeda
   obrigatória do Seat. Backfill do draft: timestamps da migration e BRL.
 - `currency` é código ISO 4217 validado no domínio; o banco exige formato AAA.
 - O índice existente iniciado em event_id é validado com EXPLAIN.
 - Testes cobrem round trip, update SQL, upgrade V1 com dados e moeda ausente/inválida.
+- A V3 remove a manutenção de timestamps por trigger e a constraint temporal.
+  Inserts usam defaults; updates atribuem updated_at explicitamente nas queries,
+  sem requisito de monotonicidade.
 
 PostgreSQL schema comes exclusively from migrations (`ddl-auto=validate`).
 Testcontainers tests must fail if Docker is unavailable, never silently skip.

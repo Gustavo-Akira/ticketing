@@ -56,15 +56,20 @@ para verificar essa possibilidade. Não se mantém um segundo índice redundante
 somente em `event_id`; sua necessidade deve ser demonstrada por carga real.
 
 Event possui `created_at` e `updated_at` em UTC (`TIMESTAMP WITH TIME ZONE` / `Instant`).
-Um trigger gera ambos na inserção, preserva a criação e avança a atualização em
-cada UPDATE, incluindo SQL direto. Hibernate lê os valores gerados pelo banco.
-Antes de persistir, os timestamps da entidade são nulos. São metadados de criação
-e última alteração, não um histórico completo das alterações.
+Defaults do banco preenchem ambos na inserção, e Hibernate lê os valores gerados.
+Cada query de alteração deve preservar `created_at` e atribuir explicitamente
+`updated_at`, por exemplo `UPDATE events SET name = ?, updated_at = statement_timestamp() WHERE id = ?`.
+Não há trigger de atualização nem garantia de monotonicidade. Uma query que omite
+a atribuição mantém o timestamp anterior. Antes de persistir, os timestamps da
+entidade são nulos. São metadados de criação e última alteração, não um histórico
+completo nem um mecanismo de controle de concorrência.
 
 A V2 preserva a V1: registros anteriores recebem timestamps da execução da migration
 (o instante histórico não pode ser recuperado) e moeda `BRL`, conforme a suposição
 explícita para os dados do draft. A migration remove o default de moeda em seguida,
 obrigando novas escritas a informá-la. O upgrade com dados V1 tem teste próprio.
+A V3 remove o trigger e a constraint de ordenação temporal introduzidos na V2,
+preservando o histórico de migrations para bancos que já aplicaram aquela versão.
 
 ## Testes e cobertura
 

@@ -11,7 +11,6 @@ import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.annotations.Generated;
 import static org.hibernate.generator.EventType.INSERT;
-import static org.hibernate.generator.EventType.UPDATE;
 
 @Entity
 @Table(name = "events")
@@ -33,8 +32,8 @@ public class Event {
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
-    @Generated(event = {INSERT, UPDATE})
-    @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
+    @Generated(event = INSERT)
+    @Column(name = "updated_at", nullable = false, insertable = false)
     private Instant updatedAt;
 
     protected Event() {}
