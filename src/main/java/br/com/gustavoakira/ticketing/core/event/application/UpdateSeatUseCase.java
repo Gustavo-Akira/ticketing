@@ -19,8 +19,7 @@ public class UpdateSeatUseCase {
 
     @Transactional
     public SeatResult execute(UUID eventId, UUID id, SeatDetails details) {
-        // Keep the event status stable until the seat update commits.
-        var event = events.findByIdForUpdate(eventId)
+        var event = events.findById(eventId)
                 .orElseThrow(() -> new EventNotFoundException(eventId));
         var seat = seats.findByIdAndEventId(id, eventId)
                 .orElseThrow(() -> new SeatNotFoundException(id));

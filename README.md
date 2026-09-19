@@ -100,9 +100,12 @@ Setor, fila e número exigem texto não vazio com até 100, 50 e 20 caracteres,
 respectivamente. Preço e moeda seguem as validações do modelo abaixo.
 Autenticação e CSRF seguem a configuração existente; erros usam Problem Details.
 
-Cada atualização bloqueia o registro do evento até o fim da transação, mantendo
-seu status estável durante a validação e a escrita. A versão JPA do assento
-protege contra outras escritas concorrentes. Não há endpoint de criação de assentos.
+Cada atualização é transacional e consulta o evento sem bloqueio pessimista.
+A regra de localização usa o status lido nessa consulta, sem serializar a escrita
+com alterações simultâneas do evento. Edições administrativas concorrentes são
+consideradas raras nesta etapa; a estratégia de controle de concorrência será
+avaliada separadamente após reproduzir o cenário de lost update.
+O `@Version` já existente no assento permanece. Não há endpoint de criação de assentos.
 
 ## Modelo
 
