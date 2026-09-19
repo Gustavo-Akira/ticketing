@@ -64,7 +64,48 @@ explicitamente e preserva `created_at`. Atualizações concorrentes seguem
 last-write-wins; os timestamps não funcionam como controle de concorrência.
 
 Publicação e cancelamento terão use cases próprios em uma etapa futura.
-Endpoints de assentos, reservas e pagamentos também permanecem no roadmap.
+Criação de assentos, reservas e pagamentos permanecem no roadmap.
+
+## API de assentos
+
+| Operação | Endpoint | Resposta |
+| --- | --- | --- |
+| Consultar | `GET /events/{eventId}/seats/{id}` | `200` ou `404` |
+| Listar | `GET /events/{eventId}/seats?page=0&size=20` | `200`, página de assentos, ou `404` para evento inexistente |
+| Atualizar | `PUT /events/{eventId}/seats/{id}` | `200`, `400`, `404` ou `409` |
+
+O PUT exige todos os campos abaixo:
+
+```json
+{
+  "section": "Floor",
+  "row": "A",
+  "number": "15",
+  "price": 120.50,
+  "currency": "BRL"
+}
+```
+
+Setor, fila e número só podem mudar quando o evento está em `DRAFT`.
+Nos demais estados, envie a localização atual para atualizar preço e moeda.
+Uma tentativa de mudar a localização retorna `409`, sem salvar nenhum campo.
+Localização duplicada no mesmo evento ou conflito de atualização concorrente
+também retornam `409`. ID, vínculo com evento e status do assento são preservados.
+A resposta contém `id`, `eventId`, `section`, `row`, `number`, `price`,
+`currency` e `status`.
+
+A listagem segue a paginação de eventos, ordenada por ID e restrita ao evento
+informado. Assento inexistente ou pertencente a outro evento retorna `404`.
+Setor, fila e número exigem texto não vazio com até 100, 50 e 20 caracteres,
+respectivamente. Preço e moeda seguem as validações do modelo abaixo.
+Autenticação e CSRF seguem a configuração existente; erros usam Problem Details.
+
+Cada atualização é transacional e consulta o evento sem bloqueio pessimista.
+A regra de localização usa o status lido nessa consulta, sem serializar a escrita
+com alterações simultâneas do evento. Edições administrativas concorrentes são
+consideradas raras nesta etapa; a estratégia de controle de concorrência será
+avaliada separadamente após reproduzir o cenário de lost update.
+O `@Version` já existente no assento permanece. Não há endpoint de criação de assentos.
 
 ## Modelo
 
