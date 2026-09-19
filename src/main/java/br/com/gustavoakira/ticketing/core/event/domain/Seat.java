@@ -9,9 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.UUID;
-import java.util.Currency;
 
 @Entity
 @Table(name = "seats")
@@ -50,24 +48,27 @@ public class Seat {
     public Seat(UUID eventId, String section, String row, String number, BigDecimal price, String currency) {
         this.id = UuidCreator.getTimeOrderedEpoch();
         this.eventId = Fields.required(eventId, "eventId");
-        this.section = Fields.text(section, "section", 100);
-        this.row = Fields.text(row, "row", 50);
-        this.number = Fields.text(number, "number", 20);
-        this.price = validatedPrice(price);
-        this.currency = Currency.getInstance(Fields.required(currency, "currency")).getCurrencyCode();
+        applyDetails(new SeatDetails(section, row, number, price, currency));
         this.status = SeatStatus.AVAILABLE;
     }
 
-    private static BigDecimal validatedPrice(BigDecimal price) {
-        Fields.required(price, "price");
-        if (price.signum() < 0 || price.compareTo(new BigDecimal("9999999999.99")) > 0) {
-            throw new IllegalArgumentException("price must be between 0 and 9999999999.99");
+    public void updateDetails(SeatDetails details, EventStatus eventStatus) {
+        Fields.required(details, "details");
+        Fields.required(eventStatus, "eventStatus");
+        if (eventStatus != EventStatus.DRAFT
+                && (!section.equals(details.section()) || !row.equals(details.row())
+                || !number.equals(details.number()))) {
+            throw new SeatLocationChangeException();
         }
-        try {
-            return price.setScale(2, RoundingMode.UNNECESSARY);
-        } catch (ArithmeticException exception) {
-            throw new IllegalArgumentException("price must have at most two decimal places", exception);
-        }
+        applyDetails(details);
+    }
+
+    private void applyDetails(SeatDetails details) {
+        this.section = details.section();
+        this.row = details.row();
+        this.number = details.number();
+        this.price = details.price();
+        this.currency = details.currency();
     }
 
     public UUID getId() { return id; }
