@@ -39,9 +39,10 @@ public class Event {
     protected Event() {}
 
     public Event(String name, Instant startsAt) {
+        var details = new EventDetails(name, startsAt);
         this.id = UuidCreator.getTimeOrderedEpoch();
-        this.name = Fields.text(name, "name", 255);
-        this.startsAt = Fields.required(startsAt, "startsAt");
+        this.name = details.name();
+        this.startsAt = details.startsAt();
         this.status = EventStatus.DRAFT;
     }
 

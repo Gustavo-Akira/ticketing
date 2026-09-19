@@ -23,6 +23,25 @@ Critérios de aceite:
 
 ---
 
+### Próxima entrega — Event use cases e API
+
+Etapa adicionada antes do domínio de reservas:
+
+- criar evento (`POST /events`);
+- consultar evento por ID (`GET /events/{id}`);
+- listar eventos com paginação (`GET /events`);
+- atualizar nome e data (`PUT /events/{id}`);
+- validação de entrada, respostas de erro e testes com PostgreSQL real.
+
+Eventos são criados em `DRAFT`. A atualização não altera status.
+Publicação e cancelamento de eventos ficam para uma entrega futura, com use cases
+próprios e regras de transição. Plano: [Event API](plans/event-api.md).
+
+Os números abaixo identificam as etapas originais do roadmap, não necessariamente
+o número atribuído pelo GitHub ao pull request.
+
+---
+
 ### PR 2 — Reservation domain
 
 Entregas:

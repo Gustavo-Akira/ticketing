@@ -1,7 +1,7 @@
 # Ticketing Core
 
-Primeira entrega do roadmap: persistência de eventos e assentos em um monólito
-Spring Boot, organizado por feature conforme ADR-0001.
+Persistência de eventos e assentos e API de eventos em um monólito Spring Boot,
+organizado por feature conforme ADR-0001.
 
 ## Executar
 
@@ -20,12 +20,57 @@ Para executar fora do Compose, use JDK 25, inicie `docker compose up -d postgres
 e execute `./gradlew bootRun` (`gradlew.bat bootRun` no Windows).
 Configure `DB_URL`, `DB_USERNAME` e `DB_PASSWORD` conforme o ambiente.
 
-Esta etapa entrega persistência. Não há endpoints de eventos nem operações de
-reserva/pagamento ainda. Spring Security mantém a configuração padrão do bootstrap.
+Spring Security mantém a configuração padrão do bootstrap: autenticação obrigatória
+e CSRF ativo. O usuário local padrão é `user`, com senha gerada no log de inicialização;
+fora do Compose, `SPRING_SECURITY_USER_NAME` e `SPRING_SECURITY_USER_PASSWORD` permitem
+configurá-los. Escritas exigem uma sessão e seu token CSRF válido no header
+`X-CSRF-TOKEN`; autenticação Basic sozinha não remove essa exigência.
+Os testes da API exercitam requisições autenticadas com e sem CSRF.
+
+## API de eventos
+
+| Operação | Endpoint | Resposta |
+| --- | --- | --- |
+| Criar | `POST /events` | `201`, evento criado e header `Location` |
+| Consultar | `GET /events/{id}` | `200` ou `404` |
+| Listar | `GET /events?page=0&size=20` | `200`, página de eventos |
+| Atualizar | `PUT /events/{id}` | `200` ou `404` |
+
+Criação e atualização recebem `Content-Type: application/json`:
+
+```json
+{
+  "name": "Concert",
+  "startsAt": "2027-01-10T20:00:00Z"
+}
+```
+
+`name` deve conter de 1 a 255 caracteres, sem ser apenas espaços; `startsAt`
+é obrigatório e inclui fuso horário. Ambos são obrigatórios no PUT.
+O evento nasce em `DRAFT`; a atualização altera somente nome e data.
+ID, status e timestamps são definidos pelo servidor. A resposta contém
+`id`, `name`, `startsAt`, `status`, `createdAt` e `updatedAt`.
+
+A listagem retorna `content`, `page`, `size`, `totalElements` e `totalPages`,
+ordenada por ID crescente. A página começa em zero, com tamanho de 1 a 100
+(padrão 20). O deslocamento `page * size` deve caber em um inteiro de 32 bits.
+Página além do resultado retorna `content: []`.
+Erros de entrada retornam `400`; ID inexistente retorna `404`, com corpo
+`application/problem+json` (`status`, `title`, `detail`). Falhas de autenticação
+e CSRF continuam sob responsabilidade do Spring Security.
+
+Cada escrita é transacional. O PUT atribui `updated_at = statement_timestamp()`
+explicitamente e preserva `created_at`. Atualizações concorrentes seguem
+last-write-wins; os timestamps não funcionam como controle de concorrência.
+
+Publicação e cancelamento terão use cases próprios em uma etapa futura.
+Endpoints de assentos, reservas e pagamentos também permanecem no roadmap.
 
 ## Modelo
 
 - `event/domain`: Event, Seat e seus estados; validações na criação.
+- `event/application`: criação, consulta, listagem e atualização de eventos.
+- `event/presentation`: endpoints, entrada JSON e tratamento de erros.
 - `event/infrastructure`: repositories JPA, incluindo consulta de assentos por evento.
 - `db/migration/`: schema e evoluções gerenciados por Flyway.
 
