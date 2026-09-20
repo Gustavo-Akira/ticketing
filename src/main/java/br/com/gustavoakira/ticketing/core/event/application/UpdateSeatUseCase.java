@@ -1,8 +1,8 @@
 package br.com.gustavoakira.ticketing.core.event.application;
 
 import br.com.gustavoakira.ticketing.core.event.domain.SeatDetails;
-import br.com.gustavoakira.ticketing.core.event.infrastructure.EventRepository;
-import br.com.gustavoakira.ticketing.core.event.infrastructure.SeatRepository;
+import br.com.gustavoakira.ticketing.core.event.port.EventRepository;
+import br.com.gustavoakira.ticketing.core.event.port.SeatRepository;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +24,6 @@ public class UpdateSeatUseCase {
         var seat = seats.findByIdAndEventId(id, eventId)
                 .orElseThrow(() -> new SeatNotFoundException(id));
         seat.updateDetails(details, event.getStatus());
-        return SeatResult.from(seats.saveAndFlush(seat));
+        return SeatResult.from(seats.save(seat));
     }
 }

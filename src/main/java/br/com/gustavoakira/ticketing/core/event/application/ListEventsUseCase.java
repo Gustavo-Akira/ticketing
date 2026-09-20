@@ -1,8 +1,6 @@
 package br.com.gustavoakira.ticketing.core.event.application;
 
-import br.com.gustavoakira.ticketing.core.event.infrastructure.EventRepository;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import br.com.gustavoakira.ticketing.core.event.port.EventRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,8 +20,8 @@ public class ListEventsUseCase {
         if ((long) page * size > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("page offset must not exceed " + Integer.MAX_VALUE);
         }
-        var result = events.findAll(PageRequest.of(page, size, Sort.by("id")));
-        return new EventPage(result.getContent().stream().map(EventResult::from).toList(),
-                page, size, result.getTotalElements(), result.getTotalPages());
+        var result = events.findAll(page, size);
+        return new EventPage(result.content().stream().map(EventResult::from).toList(),
+                page, size, result.totalElements(), result.totalPages());
     }
 }

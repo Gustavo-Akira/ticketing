@@ -1,6 +1,6 @@
 package br.com.gustavoakira.ticketing.core.event.application;
 
-import br.com.gustavoakira.ticketing.core.event.infrastructure.SeatRepository;
+import br.com.gustavoakira.ticketing.core.event.port.SeatRepository;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
