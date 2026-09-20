@@ -26,4 +26,12 @@ public interface SpringDataEventRepository extends JpaRepository<EventJpaEntity,
         FOR UPDATE;
     """, nativeQuery = true)
     Optional<EventJpaEntity> getEventByIdForUpdate(@Param("eventId") UUID eventId);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+        UPDATE events SET status = :newStatus, updated_at = statement_timestamp()
+        WHERE status = :expectedStatus AND id = :id
+    """, nativeQuery = true)
+    int updateStatusWithExpectedStatusAndId(UUID id, String newStatus, String expectedStatus
+    );
 }

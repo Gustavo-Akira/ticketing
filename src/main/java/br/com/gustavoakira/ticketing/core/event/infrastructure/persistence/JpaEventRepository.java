@@ -1,6 +1,7 @@
 package br.com.gustavoakira.ticketing.core.event.infrastructure.persistence;
 
 import br.com.gustavoakira.ticketing.core.event.domain.Event;
+import br.com.gustavoakira.ticketing.core.event.domain.EventStatus;
 import br.com.gustavoakira.ticketing.core.event.port.EventRepository;
 import br.com.gustavoakira.ticketing.core.event.port.PageResult;
 import java.time.Instant;
@@ -48,5 +49,10 @@ public class JpaEventRepository implements EventRepository {
     @Override
     public Optional<Event> getEventByIdForUpdate(UUID eventId) {
         return events.getEventByIdForUpdate(eventId).map(EventJpaEntity::toDomain);
+    }
+
+    @Override
+    public int updateEventStatusWithExpectedStatus(UUID eventId, EventStatus newStatus, EventStatus expectedStatus) {
+        return events.updateStatusWithExpectedStatusAndId(eventId,newStatus.name(),expectedStatus.name());
     }
 }

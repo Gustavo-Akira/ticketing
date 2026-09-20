@@ -1,11 +1,7 @@
 package br.com.gustavoakira.ticketing.core.event.presentation;
 
-import br.com.gustavoakira.ticketing.core.event.application.CreateEventUseCase;
-import br.com.gustavoakira.ticketing.core.event.application.EventPage;
-import br.com.gustavoakira.ticketing.core.event.application.EventResult;
-import br.com.gustavoakira.ticketing.core.event.application.GetEventUseCase;
-import br.com.gustavoakira.ticketing.core.event.application.ListEventsUseCase;
-import br.com.gustavoakira.ticketing.core.event.application.UpdateEventUseCase;
+import br.com.gustavoakira.ticketing.core.event.application.*;
+
 import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -18,13 +14,15 @@ public class EventController {
     private final GetEventUseCase get;
     private final ListEventsUseCase list;
     private final UpdateEventUseCase update;
+    private final ChangeEventStatusToAvailableUseCase change;
 
     public EventController(CreateEventUseCase create, GetEventUseCase get,
-                           ListEventsUseCase list, UpdateEventUseCase update) {
+                           ListEventsUseCase list, UpdateEventUseCase update, ChangeEventStatusToAvailableUseCase change) {
         this.create = create;
         this.get = get;
         this.list = list;
         this.update = update;
+        this.change = change;
     }
 
     @PostMapping
@@ -47,5 +45,11 @@ public class EventController {
     @PutMapping("/{id}")
     public EventResult update(@PathVariable UUID id, @RequestBody EventRequest request) {
         return update.execute(id, request.toDetails());
+    }
+
+    @PatchMapping("/{id}/status/available")
+    public ResponseEntity<Void>  changeStatus(@PathVariable UUID id) {
+        change.execute(id);
+        return ResponseEntity.noContent().build();
     }
 }
