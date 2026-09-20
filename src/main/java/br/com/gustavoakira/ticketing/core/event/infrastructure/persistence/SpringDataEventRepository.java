@@ -1,6 +1,6 @@
-package br.com.gustavoakira.ticketing.core.event.infrastructure;
+package br.com.gustavoakira.ticketing.core.event.infrastructure.persistence;
 
-import br.com.gustavoakira.ticketing.core.event.domain.Event;
+
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface EventRepository extends JpaRepository<Event, UUID> {
+public interface SpringDataEventRepository extends JpaRepository<EventJpaEntity, UUID> {
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(value = """
             UPDATE events SET name = :name, starts_at = :startsAt,
@@ -25,5 +25,5 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
         WHERE id = :eventId
         FOR UPDATE;
     """, nativeQuery = true)
-    Optional<Event> getEventByIdForUpdate(@Param("eventId") UUID eventId);
+    Optional<EventJpaEntity> getEventByIdForUpdate(@Param("eventId") UUID eventId);
 }

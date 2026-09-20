@@ -2,7 +2,7 @@ package br.com.gustavoakira.ticketing.core.event.application;
 
 import br.com.gustavoakira.ticketing.core.event.domain.Event;
 import br.com.gustavoakira.ticketing.core.event.domain.EventDetails;
-import br.com.gustavoakira.ticketing.core.event.infrastructure.EventRepository;
+import br.com.gustavoakira.ticketing.core.event.port.EventRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +16,6 @@ public class CreateEventUseCase {
 
     @Transactional
     public EventResult execute(EventDetails details) {
-        return EventResult.from(events.saveAndFlush(new Event(details.name(), details.startsAt())));
+        return EventResult.from(events.save(new Event(details.name(), details.startsAt())));
     }
 }

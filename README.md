@@ -112,7 +112,9 @@ O `@Version` já existente no assento permanece. Não há endpoint de criação 
 - `event/domain`: Event, Seat e seus estados; validações na criação.
 - `event/application`: criação, consulta, listagem e atualização de eventos.
 - `event/presentation`: endpoints, entrada JSON e tratamento de erros.
-- `event/infrastructure`: repositories JPA, incluindo consulta de assentos por evento.
+- event/port: contratos de repositório e paginação independentes de Spring Data.
+- event/infrastructure/persistence: entidades JPA, repositories Spring Data e
+  adaptadores que convertem explicitamente entre persistência e domínio.
 - `db/migration/`: schema e evoluções gerenciados por Flyway.
 
 Eventos começam em `DRAFT`; assentos começam em `AVAILABLE`. Um assento pertence a
@@ -123,7 +125,7 @@ pelo catálogo de moedas do JDK (por exemplo, `BRL`, `USD` ou `EUR`). A precisã
 continua limitada a duas casas decimais; não há conversão automática de moedas.
 No banco, a constraint valida presença e formato de três letras maiúsculas;
 a validação de pertencimento ao catálogo ISO ocorre no domínio Java.
-`Seat.version` é gerenciada por `@Version` (zero após persistir). O schema aceita
+Seat.version é um Long no domínio. O @Version de SeatJpaEntity gerencia a versão no banco (zero após persistir). O schema aceita
 os estados documentados; as transições serão implementadas com os respectivos casos
 de uso. `@Version` não substitui o UPDATE condicional planejado para reservas.
 
@@ -142,7 +144,7 @@ para verificar essa possibilidade. Não se mantém um segundo índice redundante
 somente em `event_id`; sua necessidade deve ser demonstrada por carga real.
 
 Event possui `created_at` e `updated_at` em UTC (`TIMESTAMP WITH TIME ZONE` / `Instant`).
-Defaults do banco preenchem ambos na inserção, e Hibernate lê os valores gerados.
+Defaults do banco preenchem ambos na inserção; o adaptador JPA lê os valores gerados e retorna um novo snapshot de domínio.
 Cada query de alteração deve preservar `created_at` e atribuir explicitamente
 `updated_at`, por exemplo `UPDATE events SET name = ?, updated_at = statement_timestamp() WHERE id = ?`.
 Não há trigger de atualização nem garantia de monotonicidade. Uma query que omite
@@ -185,3 +187,18 @@ proteção da branch `main` no GitHub.
 O diretório local `core` é a raiz deste repositório Git: `.github/workflows/ci.yml`
 fica na raiz esperada pelo GitHub. O plano da entrega está em
 `docs/plans/event-seat.md`; os documentos de referência do projeto estão em `docs/`.
+
+### Separação de domínio e persistência
+
+Event e Seat não possuem anotações JPA ou tipos Hibernate. Os casos de uso
+dependem de event/port; PageResult<T> transporta conteúdo e totais, e os
+adaptadores mantêm a ordenação por ID. Transações continuam nos casos de uso.
+
+Cada leitura retorna um snapshot independente. Alterar um Seat não dispara
+dirty checking: é necessário chamar SeatRepository.save. O retorno de save
+contém a versão persistida; o snapshot recebido não é atualizado implicitamente.
+O adaptador preserva a versão original ao salvar, rejeitando snapshots obsoletos.
+O mapeamento de leitura usa restore, preservando IDs, estados e metadados.
+
+A atualização de evento conserva seu SQL explícito de auditoria. A criação de
+assentos em lote mantém o bloqueio do evento até o fim da transação.

@@ -1,6 +1,8 @@
 package br.com.gustavoakira.ticketing.core.event.infrastructure;
 
 import br.com.gustavoakira.ticketing.core.event.domain.*;
+import br.com.gustavoakira.ticketing.core.event.port.EventRepository;
+import br.com.gustavoakira.ticketing.core.event.port.SeatRepository;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -32,12 +34,40 @@ class EventPersistenceTest {
     @Autowired SeatRepository seats;
     @Autowired EntityManager entityManager;
     @Autowired JdbcTemplate jdbc;
+    @Test
+    void changingDomainSnapshotDoesNotWriteWithoutExplicitSave() {
+        var stored = seats.save(seat(event().getId()));
+        var snapshot = seats.findById(stored.getId()).orElseThrow();
+        snapshot.updateDetails(new SeatDetails("Floor", "A", "15", new BigDecimal("250.00"), "USD"), EventStatus.DRAFT);
+        entityManager.flush();
+        entityManager.clear();
+        var reloaded = seats.findById(stored.getId()).orElseThrow();
+        assertThat(reloaded.getPrice()).isEqualByComparingTo("120.50");
+        assertThat(reloaded.getCurrency()).isEqualTo("BRL");
+        assertThat(reloaded.getVersion()).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void staleDomainSnapshotCannotOverwriteANewerUpdate(boolean clearContext) {
+        var stored = seats.save(seat(event().getId()));
+        var first = seats.findById(stored.getId()).orElseThrow();
+        var stale = seats.findById(stored.getId()).orElseThrow();
+        first.updateDetails(new SeatDetails("Floor", "A", "15", new BigDecimal("250.00"), "USD"), EventStatus.DRAFT);
+        assertThat(seats.save(first).getVersion()).isEqualTo(1L);
+        if (clearContext) {
+            entityManager.clear();
+        }
+        stale.updateDetails(new SeatDetails("Floor", "A", "15", new BigDecimal("300.00"), "EUR"), EventStatus.DRAFT);
+        assertThatThrownBy(() -> seats.save(stale))
+                .isInstanceOf(org.springframework.dao.OptimisticLockingFailureException.class);
+    }
 
     @Test
     void migrationsCreateSchemaAndRepositoriesRoundTripAllFields() {
         assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success", Integer.class)).isPositive();
-        var event = events.saveAndFlush(new Event("Concert", Instant.parse("2027-01-10T20:00:00Z")));
-        var seat = seats.saveAndFlush(new Seat(event.getId(), "Floor", "A", "15", new BigDecimal("120.50"), "BRL"));
+        var event = events.save(new Event("Concert", Instant.parse("2027-01-10T20:00:00Z")));
+        var seat = seats.save(new Seat(event.getId(), "Floor", "A", "15", new BigDecimal("120.50"), "BRL"));
         entityManager.clear();
 
         var storedEvent = events.findById(event.getId()).orElseThrow();
@@ -115,8 +145,8 @@ class EventPersistenceTest {
     void seatQueryIsScopedToAnEventAndLocationCanRepeatAcrossEvents() {
         var first = event();
         var second = event();
-        var firstSeat = seats.saveAndFlush(seat(first.getId()));
-        seats.saveAndFlush(seat(second.getId()));
+        var firstSeat = seats.save(seat(first.getId()));
+        seats.save(seat(second.getId()));
         entityManager.clear();
         assertThat(seats.findByEventId(first.getId())).extracting(Seat::getId).containsExactly(firstSeat.getId());
         assertThat(seats.findByEventId(UUID.randomUUID())).isEmpty();
@@ -125,21 +155,21 @@ class EventPersistenceTest {
     @Test
     void duplicateLocationWithinAnEventIsRejected() {
         var event = event();
-        seats.saveAndFlush(seat(event.getId()));
-        assertThatThrownBy(() -> seats.saveAndFlush(seat(event.getId())))
+        seats.save(seat(event.getId()));
+        assertThatThrownBy(() -> seats.save(seat(event.getId())))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void seatMustReferenceAnExistingEvent() {
-        assertThatThrownBy(() -> seats.saveAndFlush(seat(UUID.randomUUID())))
+        assertThatThrownBy(() -> seats.save(seat(UUID.randomUUID())))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void eventWithSeatsCannotBeDeleted() {
         var event = event();
-        seats.saveAndFlush(seat(event.getId()));
+        seats.save(seat(event.getId()));
         assertThatThrownBy(() -> jdbc.update("delete from events where id = ?", event.getId()))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
@@ -156,7 +186,7 @@ class EventPersistenceTest {
     @ParameterizedTest
     @EnumSource(SeatStatus.class)
     void seatStatusesRoundTripByName(SeatStatus status) {
-        var seat = seats.saveAndFlush(seat(event().getId()));
+        var seat = seats.save(seat(event().getId()));
         jdbc.update("update seats set status = ? where id = ?", status.name(), seat.getId());
         entityManager.clear();
         assertThat(seats.findById(seat.getId()).orElseThrow().getStatus()).isEqualTo(status);
@@ -165,7 +195,7 @@ class EventPersistenceTest {
     @ParameterizedTest
     @ValueSource(strings = {"price = -0.01", "status = 'INVALID'", "section = ''", "seat_row = ' '", "seat_number = ''", "version = -1", "event_id = null", "currency = null", "currency = 'brl'", "currency = 'US'", "currency = '123'"})
     void databaseRejectsInvalidSeatsEvenWhenBypassingDomain(String assignment) {
-        var seat = seats.saveAndFlush(seat(event().getId()));
+        var seat = seats.save(seat(event().getId()));
         assertThatThrownBy(() -> jdbc.update("update seats set " + assignment + " where id = ?", seat.getId()))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
@@ -179,7 +209,7 @@ class EventPersistenceTest {
     }
 
     private Event event() {
-        return events.saveAndFlush(new Event("Concert", Instant.parse("2027-01-10T20:00:00Z")));
+        return events.save(new Event("Concert", Instant.parse("2027-01-10T20:00:00Z")));
     }
 
     private Seat seat(UUID eventId) {

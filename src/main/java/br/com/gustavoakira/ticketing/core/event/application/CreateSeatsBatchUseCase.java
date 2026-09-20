@@ -3,8 +3,8 @@ package br.com.gustavoakira.ticketing.core.event.application;
 import br.com.gustavoakira.ticketing.core.event.domain.Event;
 import br.com.gustavoakira.ticketing.core.event.domain.EventStatus;
 import br.com.gustavoakira.ticketing.core.event.domain.Seat;
-import br.com.gustavoakira.ticketing.core.event.infrastructure.EventRepository;
-import br.com.gustavoakira.ticketing.core.event.infrastructure.SeatRepository;
+import br.com.gustavoakira.ticketing.core.event.port.EventRepository;
+import br.com.gustavoakira.ticketing.core.event.port.SeatRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
