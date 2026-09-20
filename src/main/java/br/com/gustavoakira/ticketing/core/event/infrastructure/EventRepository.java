@@ -2,6 +2,7 @@ package br.com.gustavoakira.ticketing.core.event.infrastructure;
 
 import br.com.gustavoakira.ticketing.core.event.domain.Event;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -17,4 +18,12 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
             """, nativeQuery = true)
     int updateDetails(@Param("id") UUID id, @Param("name") String name,
                       @Param("startsAt") Instant startsAt);
+
+    @Query(value = """
+        SELECT *
+        FROM events
+        WHERE id = :eventId
+        FOR UPDATE;
+    """, nativeQuery = true)
+    Optional<Event> getEventByIdForUpdate(@Param("eventId") UUID eventId);
 }

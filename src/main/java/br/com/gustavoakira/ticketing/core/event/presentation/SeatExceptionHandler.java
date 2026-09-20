@@ -1,6 +1,8 @@
 package br.com.gustavoakira.ticketing.core.event.presentation;
 
+import br.com.gustavoakira.ticketing.core.event.application.EventNotDraftException;
 import br.com.gustavoakira.ticketing.core.event.application.EventNotFoundException;
+import br.com.gustavoakira.ticketing.core.event.application.InvalidSeatConfigurationException;
 import br.com.gustavoakira.ticketing.core.event.application.SeatNotFoundException;
 import br.com.gustavoakira.ticketing.core.event.domain.SeatLocationChangeException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -23,6 +25,12 @@ public class SeatExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
     }
 
+    @ExceptionHandler(InvalidSeatConfigurationException.class)
+    public ProblemDetail invalidInput(InvalidSeatConfigurationException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+
     @ExceptionHandler(SeatLocationChangeException.class)
     public ProblemDetail locationConflict(SeatLocationChangeException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
@@ -32,5 +40,10 @@ public class SeatExceptionHandler extends ResponseEntityExceptionHandler {
     public ProblemDetail persistenceConflict(RuntimeException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "Seat update conflicts with an existing location or a concurrent change");
+    }
+
+    @ExceptionHandler(EventNotDraftException.class)
+    public ProblemDetail eventNotDraft(EventNotDraftException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
     }
 }

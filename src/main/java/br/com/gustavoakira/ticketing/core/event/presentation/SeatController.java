@@ -1,11 +1,10 @@
 package br.com.gustavoakira.ticketing.core.event.presentation;
 
-import br.com.gustavoakira.ticketing.core.event.application.GetSeatUseCase;
-import br.com.gustavoakira.ticketing.core.event.application.ListSeatsUseCase;
-import br.com.gustavoakira.ticketing.core.event.application.SeatPage;
-import br.com.gustavoakira.ticketing.core.event.application.SeatResult;
-import br.com.gustavoakira.ticketing.core.event.application.UpdateSeatUseCase;
+import br.com.gustavoakira.ticketing.core.event.application.*;
+
 import java.util.UUID;
+
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,11 +13,13 @@ public class SeatController {
     private final GetSeatUseCase get;
     private final ListSeatsUseCase list;
     private final UpdateSeatUseCase update;
+    private final CreateSeatsBatchUseCase create;
 
-    public SeatController(GetSeatUseCase get, ListSeatsUseCase list, UpdateSeatUseCase update) {
+    public SeatController(GetSeatUseCase get, ListSeatsUseCase list, UpdateSeatUseCase update, CreateSeatsBatchUseCase create) {
         this.get = get;
         this.list = list;
         this.update = update;
+        this.create = create;
     }
 
     @GetMapping("/{id}")
@@ -36,5 +37,11 @@ public class SeatController {
     public SeatResult update(@PathVariable UUID eventId, @PathVariable UUID id,
                              @RequestBody SeatRequest request) {
         return update.execute(eventId, id, request.toDetails());
+    }
+
+    @PostMapping("create-seats")
+    public ResponseEntity<Void> createSeats(@PathVariable UUID eventId, @RequestBody SeatBatchCreationRequest request) {
+        create.execute(eventId, request.toCommand());
+        return ResponseEntity.ok().build();
     }
 }
