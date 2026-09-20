@@ -1,5 +1,6 @@
 package br.com.gustavoakira.ticketing.core.event.domain;
 
+import br.com.gustavoakira.ticketing.core.event.application.EventNotDraftException;
 import com.github.f4b6a3.uuid.UuidCreator;
 import java.time.Instant;
 import java.util.UUID;
@@ -42,4 +43,10 @@ public class Event {
     public EventStatus getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public void changeStatusToAvailable() {
+        if(status != EventStatus.DRAFT){
+            throw new EventNotDraftException("Cannot change status to available event when event is not in DRAFT");
+        }
+        this.status = EventStatus.AVAILABLE;
+    }
 }

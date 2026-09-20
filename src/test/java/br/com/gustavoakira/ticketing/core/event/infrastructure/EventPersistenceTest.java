@@ -215,4 +215,35 @@ class EventPersistenceTest {
     private Seat seat(UUID eventId) {
         return new Seat(eventId, "Floor", "A", "15", new BigDecimal("120.50"), "BRL");
     }
+
+    @Test
+    void conditionalStatusUpdateChangesOnlyTheMatchingEvent() {
+        var target = event();
+        jdbc.update("update events set updated_at = '2000-01-01T00:00:00Z' where id = ?", target.getId());
+        var other = event();
+        assertThat(events.updateEventStatusWithExpectedStatus(target.getId(), EventStatus.AVAILABLE, EventStatus.DRAFT))
+                .isEqualTo(1);
+        assertThat(events.findById(target.getId()).orElseThrow().getStatus()).isEqualTo(EventStatus.AVAILABLE);
+        assertThat(events.findById(other.getId()).orElseThrow().getStatus()).isEqualTo(EventStatus.DRAFT);
+        var stored = events.findById(target.getId()).orElseThrow();
+        assertThat(stored.getUpdatedAt()).isAfter(Instant.parse("2000-01-01T00:00:00Z"));
+        assertThat(stored.getCreatedAt()).isEqualTo(target.getCreatedAt());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EventStatus.class, names = "DRAFT", mode = EnumSource.Mode.EXCLUDE)
+    void conditionalStatusUpdateCannotOverwriteANewerStatus(EventStatus status) {
+        var target = event();
+        jdbc.update("update events set status = ? where id = ?", status.name(), target.getId());
+        entityManager.clear();
+        assertThat(events.updateEventStatusWithExpectedStatus(target.getId(), EventStatus.AVAILABLE, EventStatus.DRAFT))
+                .isZero();
+        assertThat(events.findById(target.getId()).orElseThrow().getStatus()).isEqualTo(status);
+    }
+
+    @Test
+    void conditionalStatusUpdateOfMissingEventReturnsZero() {
+        assertThat(events.updateEventStatusWithExpectedStatus(UUID.randomUUID(), EventStatus.AVAILABLE, EventStatus.DRAFT))
+                .isZero();
+    }
 }

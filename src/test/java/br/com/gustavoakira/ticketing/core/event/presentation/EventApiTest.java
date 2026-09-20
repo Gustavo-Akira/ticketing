@@ -176,4 +176,61 @@ class EventApiTest {
         jdbc.update("insert into events(id, name, starts_at, status) values (?, ?, '2027-01-01T00:00:00Z', 'DRAFT')", id, name);
         return id;
     }
+
+    @Test
+    void makingDraftAvailableReturns204AndPersistsStatus() throws Exception {
+        UUID id = seed("Concert");
+        jdbc.update("update events set updated_at = '2000-01-01T00:00:00Z' where id = ?", id);
+        var before = jdbc.queryForMap("select * from events where id = ?", id);
+        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")).with(csrf()))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+        assertThat(jdbc.queryForObject("select status from events where id = ?", String.class, id))
+                .isEqualTo("AVAILABLE");
+        var after = jdbc.queryForMap("select * from events where id = ?", id);
+        assertThat(after.get("updated_at")).isNotEqualTo(before.get("updated_at"));
+        assertThat(after.get("created_at")).isEqualTo(before.get("created_at"));
+        assertThat(after.get("starts_at")).isEqualTo(before.get("starts_at"));
+        mvc.perform(get("/events/{id}", id).with(user("reader")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AVAILABLE"))
+                .andExpect(jsonPath("$.name").value("Concert"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"AVAILABLE", "SALES_CLOSED", "FINISHED", "CANCELLED"})
+    void makingNonDraftAvailableReturns400WithoutWriting(String eventStatus) throws Exception {
+        UUID id = seed("Concert");
+        jdbc.update("update events set status = ? where id = ?", eventStatus, id);
+        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")).with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+        assertThat(jdbc.queryForObject("select status from events where id = ?", String.class, id))
+                .isEqualTo(eventStatus);
+    }
+
+    @Test
+    void makingMissingEventAvailableReturns404() throws Exception {
+        mvc.perform(patch("/events/{id}/status/available", UUID.randomUUID()).with(user("editor")).with(csrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+        assertThat(jdbc.queryForObject("select count(*) from events", Long.class)).isZero();
+    }
+
+    @Test
+    void statusChangeRejectsMalformedId() throws Exception {
+        mvc.perform(patch("/events/not-a-uuid/status/available").with(user("editor")).with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    void statusChangeRequiresAuthenticationAndCsrf() throws Exception {
+        UUID id = seed("Concert");
+        mvc.perform(patch("/events/{id}/status/available", id).with(csrf()).accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")))
+                .andExpect(status().isForbidden());
+        assertThat(jdbc.queryForObject("select status from events where id = ?", String.class, id)).isEqualTo("DRAFT");
+    }
 }
