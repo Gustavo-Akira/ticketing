@@ -3,6 +3,7 @@ package br.com.gustavoakira.ticketing.core.event.application;
 import br.com.gustavoakira.ticketing.core.event.domain.Event;
 import br.com.gustavoakira.ticketing.core.event.domain.EventStatus;
 import br.com.gustavoakira.ticketing.core.event.port.EventRepository;
+import br.com.gustavoakira.ticketing.core.event.port.SeatRepository;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,17 +21,19 @@ import static org.mockito.Mockito.*;
 class ChangeEventStatusToAvailableUseCaseTest {
     private static final Instant START = Instant.parse("2027-01-10T20:00:00Z");
     @Mock EventRepository events;
+    @Mock SeatRepository seats;
     ChangeEventStatusToAvailableUseCase useCase;
 
     @BeforeEach
     void setup() {
-        useCase = new ChangeEventStatusToAvailableUseCase(events);
+        useCase = new ChangeEventStatusToAvailableUseCase(events, seats);
     }
 
     @Test
     void makesDraftAvailableUsingItsOriginalStatusAsTheUpdateCondition() {
         var event = new Event("Concert", START);
         when(events.findById(event.getId())).thenReturn(Optional.of(event));
+        when(seats.existsByEventId(event.getId())).thenReturn(true);
         when(events.updateEventStatusWithExpectedStatus(event.getId(), EventStatus.AVAILABLE, EventStatus.DRAFT))
                 .thenReturn(1);
 
@@ -39,6 +42,8 @@ class ChangeEventStatusToAvailableUseCaseTest {
         verify(events).findById(event.getId());
         verify(events).updateEventStatusWithExpectedStatus(event.getId(), EventStatus.AVAILABLE, EventStatus.DRAFT);
         verifyNoMoreInteractions(events);
+        verify(seats).existsByEventId(event.getId());
+        verifyNoMoreInteractions(seats);
     }
 
     @Test
@@ -50,6 +55,7 @@ class ChangeEventStatusToAvailableUseCaseTest {
 
         verify(events).findById(id);
         verifyNoMoreInteractions(events);
+        verifyNoInteractions(seats);
     }
 
     @ParameterizedTest
@@ -57,17 +63,21 @@ class ChangeEventStatusToAvailableUseCaseTest {
     void nonDraftIsRejectedBeforeWriting(EventStatus status) {
         var event = Event.restore(UUID.randomUUID(), "Concert", START, status, START, START);
         when(events.findById(event.getId())).thenReturn(Optional.of(event));
+        when(seats.existsByEventId(event.getId())).thenReturn(true);
 
         assertThatThrownBy(() -> useCase.execute(event.getId())).isInstanceOf(EventNotDraftException.class);
 
         verify(events).findById(event.getId());
         verifyNoMoreInteractions(events);
+        verify(seats).existsByEventId(event.getId());
+        verifyNoMoreInteractions(seats);
     }
 
     @Test
     void failedConditionalUpdateReportsConcurrentModification() {
         var event = new Event("Concert", START);
         when(events.findById(event.getId())).thenReturn(Optional.of(event));
+        when(seats.existsByEventId(event.getId())).thenReturn(true);
         when(events.updateEventStatusWithExpectedStatus(event.getId(), EventStatus.AVAILABLE, EventStatus.DRAFT))
                 .thenReturn(0);
 
@@ -77,5 +87,24 @@ class ChangeEventStatusToAvailableUseCaseTest {
         verify(events).findById(event.getId());
         verify(events).updateEventStatusWithExpectedStatus(event.getId(), EventStatus.AVAILABLE, EventStatus.DRAFT);
         verifyNoMoreInteractions(events);
+        verify(seats).existsByEventId(event.getId());
+        verifyNoMoreInteractions(seats);
+    }
+
+    @ParameterizedTest
+    @EnumSource(EventStatus.class)
+    void eventWithoutSeatsIsRejectedBeforeChangingOrWritingStatus(EventStatus status) {
+        var event = Event.restore(UUID.randomUUID(), "Concert", START, status, START, START);
+        when(events.findById(event.getId())).thenReturn(Optional.of(event));
+        when(seats.existsByEventId(event.getId())).thenReturn(false);
+
+        assertThatThrownBy(() -> useCase.execute(event.getId()))
+                .isInstanceOf(EventHasNotSeatException.class)
+                .hasMessage("Event with id " + event.getId() + " has not seat");
+
+        assertThat(event.getStatus()).isEqualTo(status);
+        verify(events).findById(event.getId());
+        verify(seats).existsByEventId(event.getId());
+        verifyNoMoreInteractions(events, seats);
     }
 }

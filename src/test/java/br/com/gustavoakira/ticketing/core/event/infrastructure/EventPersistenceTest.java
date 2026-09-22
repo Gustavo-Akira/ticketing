@@ -246,4 +246,30 @@ class EventPersistenceTest {
         assertThat(events.updateEventStatusWithExpectedStatus(UUID.randomUUID(), EventStatus.AVAILABLE, EventStatus.DRAFT))
                 .isZero();
     }
+
+    @Test
+    void seatExistenceIsScopedToTheRequestedEvent() {
+        var target = event();
+        var other = event();
+        seats.save(seat(other.getId()));
+        entityManager.clear();
+
+        assertThat(seats.existsByEventId(target.getId())).isFalse();
+        assertThat(seats.existsByEventId(UUID.randomUUID())).isFalse();
+        assertThat(seats.existsByEventId(other.getId())).isTrue();
+
+        seats.save(seat(target.getId()));
+        entityManager.clear();
+        assertThat(seats.existsByEventId(target.getId())).isTrue();
+    }
+
+    @ParameterizedTest
+    @EnumSource(SeatStatus.class)
+    void seatExistenceDoesNotFilterBySeatStatus(SeatStatus status) {
+        var stored = seats.save(seat(event().getId()));
+        jdbc.update("update seats set status = ? where id = ?", status.name(), stored.getId());
+        entityManager.clear();
+
+        assertThat(seats.existsByEventId(stored.getEventId())).isTrue();
+    }
 }

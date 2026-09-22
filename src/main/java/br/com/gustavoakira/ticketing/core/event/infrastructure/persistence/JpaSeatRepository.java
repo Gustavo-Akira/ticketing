@@ -49,4 +49,9 @@ public class JpaSeatRepository implements SeatRepository {
     public Optional<Seat> findByIdAndEventId(UUID id, UUID eventId) {
         return seats.findByIdAndEventId(id, eventId).map(SeatJpaEntity::toDomain);
     }
+
+    @Override
+    public boolean existsByEventId(UUID eventId) {
+        return seats.existsAvailableSeatByEventId(eventId);
+    }
 }
