@@ -180,6 +180,7 @@ class EventApiTest {
     @Test
     void makingDraftAvailableReturns204AndPersistsStatus() throws Exception {
         UUID id = seed("Concert");
+        seedSeat(id);
         jdbc.update("update events set updated_at = '2000-01-01T00:00:00Z' where id = ?", id);
         var before = jdbc.queryForMap("select * from events where id = ?", id);
         mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")).with(csrf()))
@@ -201,6 +202,7 @@ class EventApiTest {
     @ValueSource(strings = {"AVAILABLE", "SALES_CLOSED", "FINISHED", "CANCELLED"})
     void makingNonDraftAvailableReturns400WithoutWriting(String eventStatus) throws Exception {
         UUID id = seed("Concert");
+        seedSeat(id);
         jdbc.update("update events set status = ? where id = ?", eventStatus, id);
         mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")).with(csrf()))
                 .andExpect(status().isBadRequest())
@@ -232,5 +234,46 @@ class EventApiTest {
         mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")))
                 .andExpect(status().isForbidden());
         assertThat(jdbc.queryForObject("select status from events where id = ?", String.class, id)).isEqualTo("DRAFT");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void eventWithoutSeatsReturns409WithoutWritingEvenWhenAnotherEventHasSeats(boolean otherHasSeats) throws Exception {
+        UUID id = seed("Empty concert");
+        if (otherHasSeats) {
+            seedSeat(seed("Other concert"));
+        }
+        var before = jdbc.queryForMap("select * from events where id = ?", id);
+
+        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")).with(csrf()))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.detail").value("Event with id " + id + " has not seat"));
+
+        assertThat(jdbc.queryForMap("select * from events where id = ?", id)).isEqualTo(before);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"AVAILABLE", "SALES_CLOSED", "FINISHED", "CANCELLED"})
+    void missingSeatsTakePrecedenceOverInvalidEventStatusWithoutWriting(String eventStatus) throws Exception {
+        UUID id = seed("Empty concert");
+        jdbc.update("update events set status = ? where id = ?", eventStatus, id);
+        var before = jdbc.queryForMap("select * from events where id = ?", id);
+
+        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")).with(csrf()))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.detail").value("Event with id " + id + " has not seat"));
+
+        assertThat(jdbc.queryForMap("select * from events where id = ?", id)).isEqualTo(before);
+    }
+
+    private void seedSeat(UUID eventId) {
+        jdbc.update("""
+                insert into seats(id, event_id, section, seat_row, seat_number, price, currency, status, version)
+                values (?, ?, 'Floor', 'A', '1', 120.50, 'BRL', 'AVAILABLE', 0)
+                """, UUID.randomUUID(), eventId);
     }
 }

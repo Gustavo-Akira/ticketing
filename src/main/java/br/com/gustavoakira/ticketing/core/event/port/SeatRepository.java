@@ -13,4 +13,5 @@ public interface SeatRepository {
     List<Seat> findByEventId(UUID eventId);
     PageResult<Seat> findByEventId(UUID eventId, int page, int size);
     Optional<Seat> findByIdAndEventId(UUID id, UUID eventId);
+    boolean existsByEventId(UUID eventId);
 }

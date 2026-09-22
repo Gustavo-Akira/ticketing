@@ -1,6 +1,7 @@
 package br.com.gustavoakira.ticketing.core.event.presentation;
 
 import br.com.gustavoakira.ticketing.core.event.application.ConcurrentEventModificationException;
+import br.com.gustavoakira.ticketing.core.event.application.EventHasNotSeatException;
 import br.com.gustavoakira.ticketing.core.event.application.EventNotDraftException;
 import br.com.gustavoakira.ticketing.core.event.application.EventNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,11 @@ public class EventExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(EventNotDraftException.class)
     public ProblemDetail eventNotDraft(EventNotDraftException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler(EventHasNotSeatException.class)
+    public ProblemDetail eventHasNotSeat(EventHasNotSeatException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
     }
 
     @ExceptionHandler(ConcurrentEventModificationException.class)
