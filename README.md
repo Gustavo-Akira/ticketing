@@ -1,6 +1,6 @@
 # Ticketing Core
 
-Persistência de eventos e assentos e API de eventos em um monólito Spring Boot,
+Persistência de eventos, assentos e usuários, com API de eventos em um monólito Spring Boot,
 organizado por feature conforme ADR-0001.
 
 ## Executar
@@ -26,6 +26,23 @@ fora do Compose, `SPRING_SECURITY_USER_NAME` e `SPRING_SECURITY_USER_PASSWORD` p
 configurá-los. Escritas exigem uma sessão e seu token CSRF válido no header
 `X-CSRF-TOKEN`; autenticação Basic sozinha não remove essa exigência.
 Os testes da API exercitam requisições autenticadas com e sem CSRF.
+
+## Base de identity
+
+O módulo `identity` contém o domínio de usuário e sua persistência. Cada usuário
+possui UUID temporal, nome, e-mail único, datas de auditoria e uma ou mais roles:
+`CUSTOMER`, `ORGANIZER` e `ADMIN`. As roles são independentes: um organizador pode
+também ser cliente, e `ADMIN` não adiciona outras roles automaticamente.
+
+O e-mail é armazenado em minúsculas, sem espaços externos. A unicidade é garantida
+pelo PostgreSQL, inclusive em gravações concorrentes. Usuário e roles são gravados
+na mesma transação nas tabelas `users` e `user_roles`, criadas pela migration V4.
+O repositório permite salvar e consultar por ID ou e-mail, retornando snapshots
+de domínio com roles imutáveis e auditoria gerada pelo banco.
+
+Esta entrega é a base de identity. Cadastro, senha, login e autorização por role
+serão tratados no próximo PR; a configuração atual do Spring Security permanece
+ativa. O módulo ainda não expõe endpoints nem cria contas administrativas.
 
 ## API de eventos
 

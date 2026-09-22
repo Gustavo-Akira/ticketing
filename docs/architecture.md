@@ -32,6 +32,7 @@ Client
 Spring Boot API
   |
   +--> Event
+  +--> Identity
   +--> Reservation
   +--> Payment
   +--> Outbox
@@ -51,6 +52,11 @@ Motivos:
 ## 3. Organização por feature
 
 ```text
+identity/
+  domain/
+  port/
+  infrastructure/persistence/
+
 event/
   domain/
   application/
@@ -76,6 +82,12 @@ shared/
 ```
 
 Cada feature contém suas responsabilidades.
+
+`identity` possui domínio independente de Spring/JPA e uma porta de repositório
+implementada por um adaptador JPA. O adaptador delimita as transações de gravação
+e leitura, incluindo a conversão das roles para um snapshot imutável. A base
+persiste usuários e múltiplas roles; application, presentation e integração de
+autenticação serão introduzidos na próxima entrega.
 
 Não teremos diretórios globais gigantes de `controllers`, `services` e `repositories`.
 

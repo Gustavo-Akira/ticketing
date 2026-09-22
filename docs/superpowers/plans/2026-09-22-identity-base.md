@@ -1,6 +1,6 @@
 # Identity Base Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Entregar o primeiro PR de identity com usuários, múltiplas roles e persistência testada.
 
@@ -76,7 +76,7 @@ public Instant getCreatedAt();
 public Instant getUpdatedAt();
 ```
 
-- [ ] Escrever o teste inicial em `UserDomainTest`:
+- [x] Escrever o teste inicial em `UserDomainTest`:
 
 ```java
 @Test
@@ -94,8 +94,8 @@ void createsOneIdentityWithMultipleRolesAndNormalizedEmail() {
 }
 ```
 
-- [ ] Executar `./gradlew.bat test --tests '*identity.domain.*'` e confirmar falha pela ausência dos tipos.
-- [ ] Implementar enum, record e classe. No construtor compacto do record, rejeitar nome nulo, em branco ou maior que 255; roles nulas, vazias ou com null; copiar com `Set.copyOf`. Rejeitar entradas inválidas com `IllegalArgumentException`, conforme o domínio existente. Normalização e formato do e-mail:
+- [x] Executar `./gradlew.bat test --tests '*identity.domain.*'` e confirmar falha pela ausência dos tipos.
+- [x] Implementar enum, record e classe. No construtor compacto do record, rejeitar nome nulo, em branco ou maior que 255; roles nulas, vazias ou com null; copiar com `Set.copyOf`. Rejeitar entradas inválidas com `IllegalArgumentException`, conforme o domínio existente. Normalização e formato do e-mail:
 
 ```java
 if (email == null) throw new IllegalArgumentException("email is required");
@@ -107,9 +107,9 @@ if (normalized.length() > 254
 return normalized;
 ```
 
-- [ ] Construir `User` com dados de `UserDetails` e UUID temporal. `restore` usa os mesmos dados validados, exige ID e datas não nulos e preserva os valores recebidos. Não adicionar setters ou operações de alteração de roles.
-- [ ] Ampliar `UserDomainTest` com testes parametrizados para nomes nulos/em branco/256 caracteres; e-mails nulos/em branco/sem `@`/com dois `@`/com espaços internos/255 caracteres; roles nulas/vazias/com null. Aceitar limites de 255 para nome e 254 para e-mail. Cobrir cada enum e reconstituição com ID/datas conhecidos e suas variantes nulas.
-- [ ] Acrescentar o teste de locale, sempre restaurando o estado global:
+- [x] Construir `User` com dados de `UserDetails` e UUID temporal. `restore` usa os mesmos dados validados, exige ID e datas não nulos e preserva os valores recebidos. Não adicionar setters ou operações de alteração de roles.
+- [x] Ampliar `UserDomainTest` com testes parametrizados para nomes nulos/em branco/256 caracteres; e-mails nulos/em branco/sem `@`/com dois `@`/com espaços internos/255 caracteres; roles nulas/vazias/com null. Aceitar limites de 255 para nome e 254 para e-mail. Cobrir cada enum e reconstituição com ID/datas conhecidos e suas variantes nulas.
+- [x] Acrescentar o teste de locale, sempre restaurando o estado global:
 
 ```java
 @Test
@@ -125,8 +125,8 @@ void emailNormalizationDoesNotDependOnJvmLocale() {
 }
 ```
 
-- [ ] Em `DomainIsolationTest`, inspecionar anotações das classes, campos e métodos de `User`, `UserDetails` e `Role`; rejeitar pacotes `jakarta.persistence`, `org.hibernate` e `org.springframework`. Inspecionar também tipos dos campos, parâmetros e retornos para evitar dependências de frameworks por assinatura.
-- [ ] Executar novamente `./gradlew.bat test --tests '*identity.domain.*'`; exigir sucesso antes de registrar `feat: add identity user domain and roles`.
+- [x] Em `DomainIsolationTest`, inspecionar anotações das classes, campos e métodos de `User`, `UserDetails` e `Role`; rejeitar pacotes `jakarta.persistence`, `org.hibernate` e `org.springframework`. Inspecionar também tipos dos campos, parâmetros e retornos para evitar dependências de frameworks por assinatura.
+- [x] Executar novamente `./gradlew.bat test --tests '*identity.domain.*'`; exigir sucesso antes de registrar `feat: add identity user domain and roles`.
 
 ## Tarefa 2: Migration, porta e persistência transacional
 
@@ -149,8 +149,8 @@ static UserJpaEntity fromDomain(User user);
 User toDomain();
 ```
 
-- [ ] Criar `UserPersistenceTest` com `@SpringBootTest`, `@Testcontainers`, `@ServiceConnection` e `PostgreSQLContainer("postgres:17.6-alpine")`, conforme `EventPersistenceTest`. Não marcar a classe inteira como `@Transactional`: precisamos provar que o adaptador funciona sem transação externa. Usar e-mails únicos por teste.
-- [ ] Escrever o primeiro teste e executar `./gradlew.bat test --tests '*identity.infrastructure.UserPersistenceTest'`, esperando falha antes da implementação:
+- [x] Criar `UserPersistenceTest` com `@SpringBootTest`, `@Testcontainers`, `@ServiceConnection` e `PostgreSQLContainer("postgres:17.6-alpine")`, conforme `EventPersistenceTest`. Não marcar a classe inteira como `@Transactional`: precisamos provar que o adaptador funciona sem transação externa. Usar e-mails únicos por teste.
+- [x] Escrever o primeiro teste e executar `./gradlew.bat test --tests '*identity.infrastructure.UserPersistenceTest'`, esperando falha antes da implementação:
 
 ```java
 @Test
@@ -168,7 +168,7 @@ void savesAndLoadsAllFieldsWithoutCallerTransaction() {
 }
 ```
 
-- [ ] Criar a migration com as seguintes definições:
+- [x] Criar a migration com as seguintes definições:
 
 ```sql
 CREATE TABLE users (
@@ -189,14 +189,14 @@ CREATE TABLE user_roles (
 );
 ```
 
-- [ ] Implementar entidade com `@Table(name = "users")`, construtor protegido, campos equivalentes ao domínio e `@ElementCollection` para roles. Usar `@CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))`, `@Enumerated(EnumType.STRING)` e coluna `role` com comprimento 20. Copiar as roles no mapeamento.
-- [ ] Mapear as duas datas com `@Generated(event = INSERT)` e `insertable = false`; `createdAt` também usa `updatable = false`, conforme `EventJpaEntity`. `toDomain` chama `User.restore`.
-- [ ] Implementar Spring Data e adaptador. `save` usa `@Transactional` e `saveAndFlush(...).toDomain()`; consultas usam `@Transactional(readOnly = true)`, convertendo o resultado antes de encerrar a transação. `findByEmail` chama `UserDetails.normalizeEmail`. Não adicionar pré-consulta de unicidade nem capturar e ocultar violações de integridade.
-- [ ] Testar ausência por ID e e-mail, todas as roles, repetição de `save` do mesmo snapshot sem duplicação de associações e rejeição de e-mail duplicado após normalização. Para constraints, executar SQL direto com `JdbcTemplate` e esperar `DataIntegrityViolationException` para nome inválido, e-mail inválido/não normalizado, datas nulas, role inválida, associação duplicada e FK inexistente.
-- [ ] Testar cascata: gravar um usuário, executar `delete from users where id = ?` e verificar zero linhas em `user_roles` para seu ID. Testar que um update SQL sem atribuição de auditoria não muda `updated_at` automaticamente.
-- [ ] Testar atomicidade com `TransactionTemplate`: dentro da mesma transação, salvar um usuário e executar `insert into user_roles (user_id, role) values (?, 'INVALID')`; após a exceção, verificar que `findById` está vazio. Isso também confirma a participação do adaptador na transação externa.
-- [ ] Testar concorrência com duas tarefas em `Executors.newFixedThreadPool(2)` e `CountDownLatch(1)` como início comum. Ambas chamam `users.save` com o mesmo e-mail e IDs distintos. Capturar apenas `DataIntegrityViolationException` como conflito esperado, usar `Future.get(30, TimeUnit.SECONDS)` e encerrar o executor em `finally`. Exigir uma gravação e um conflito; verificar uma única linha em `users` e as roles da gravação vencedora.
-- [ ] Executar `./gradlew.bat test --tests '*identity.*'`. Confirmar migration aplicada, mapeamento válido e todos os testes verdes antes de registrar `feat: persist identity users and roles`.
+- [x] Implementar entidade com `@Table(name = "users")`, construtor protegido, campos equivalentes ao domínio e `@ElementCollection` para roles. Usar `@CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))`, `@Enumerated(EnumType.STRING)` e coluna `role` com comprimento 20. Copiar as roles no mapeamento.
+- [x] Mapear as duas datas com `@Generated(event = INSERT)` e `insertable = false`; `createdAt` também usa `updatable = false`, conforme `EventJpaEntity`. `toDomain` chama `User.restore`.
+- [x] Implementar Spring Data e adaptador. `save` usa `@Transactional` e `saveAndFlush(...).toDomain()`; consultas usam `@Transactional(readOnly = true)`, convertendo o resultado antes de encerrar a transação. `findByEmail` chama `UserDetails.normalizeEmail`. Não adicionar pré-consulta de unicidade nem capturar e ocultar violações de integridade.
+- [x] Testar ausência por ID e e-mail, todas as roles, repetição de `save` do mesmo snapshot sem duplicação de associações e rejeição de e-mail duplicado após normalização. Para constraints, executar SQL direto com `JdbcTemplate` e esperar `DataIntegrityViolationException` para nome inválido, e-mail inválido/não normalizado, datas nulas, role inválida, associação duplicada e FK inexistente.
+- [x] Testar cascata: gravar um usuário, executar `delete from users where id = ?` e verificar zero linhas em `user_roles` para seu ID. Testar que um update SQL sem atribuição de auditoria não muda `updated_at` automaticamente.
+- [x] Testar atomicidade com `TransactionTemplate`: dentro da mesma transação, salvar um usuário e executar `insert into user_roles (user_id, role) values (?, 'INVALID')`; após a exceção, verificar que `findById` está vazio. Isso também confirma a participação do adaptador na transação externa.
+- [x] Testar concorrência com duas tarefas em `Executors.newFixedThreadPool(2)` e `CountDownLatch(1)` como início comum. Ambas chamam `users.save` com o mesmo e-mail e IDs distintos. Capturar apenas `DataIntegrityViolationException` como conflito esperado, usar `Future.get(30, TimeUnit.SECONDS)` e encerrar o executor em `finally`. Exigir uma gravação e um conflito; verificar uma única linha em `users` e as roles da gravação vencedora.
+- [x] Executar `./gradlew.bat test --tests '*identity.*'`. Confirmar migration aplicada, mapeamento válido e todos os testes verdes antes de registrar `feat: persist identity users and roles`.
 
 ## Tarefa 3: Documentação e validação do PR
 
@@ -204,18 +204,18 @@ CREATE TABLE user_roles (
 
 **Interfaces consumidas:** Modelo e contrato de persistência entregues nas tarefas 1 e 2; nenhum novo contrato público.
 
-- [ ] Incluir `User` e `Role` no modelo de domínio, documentando múltiplas roles independentes e normalização do e-mail.
-- [ ] Incluir o módulo `identity` na organização arquitetural. No README, explicar que o PR entrega domínio/persistência; cadastro e autenticação continuam na próxima entrega. Manter estilo e organização atuais dos documentos.
-- [ ] Executar a verificação completa:
+- [x] Incluir `User` e `Role` no modelo de domínio, documentando múltiplas roles independentes e normalização do e-mail.
+- [x] Incluir o módulo `identity` na organização arquitetural. No README, explicar que o PR entrega domínio/persistência; cadastro e autenticação continuam na próxima entrega. Manter estilo e organização atuais dos documentos.
+- [x] Executar a verificação completa:
 
 ```powershell
 ./gradlew.bat check
 git diff --check
 ```
 
-- [ ] Se falhar, distinguir erro de código, falha de teste e requisito de ambiente (Java 25/Docker). Corrigir falhas no escopo e repetir somente as verificações afetadas; não reduzir cobertura nem desabilitar testes para obter sucesso.
-- [ ] Conferir diff contra a especificação, especialmente ausência de alterações na segurança/API e nas migrations V1–V3. Revisar se o teste de concorrência e o de rollback falhariam sem as constraints/transações correspondentes.
-- [ ] Registrar documentação e preparar o primeiro PR com comportamento, limites de escopo e comandos de validação efetivamente executados. Não iniciar autenticação no mesmo PR.
+- [x] Se falhar, distinguir erro de código, falha de teste e requisito de ambiente (Java 25/Docker). Corrigir falhas no escopo e repetir somente as verificações afetadas; não reduzir cobertura nem desabilitar testes para obter sucesso.
+- [x] Conferir diff contra a especificação, especialmente ausência de alterações na segurança/API e nas migrations V1–V3. Revisar se o teste de concorrência e o de rollback falhariam sem as constraints/transações correspondentes.
+- [x] Registrar documentação e preparar o primeiro PR com comportamento, limites de escopo e comandos de validação efetivamente executados. Não iniciar autenticação no mesmo PR.
 
 ## Revisão do plano
 
@@ -229,3 +229,17 @@ do domínio e da porta são únicas e compartilhadas entre as tarefas.
 Execução direta nesta sessão, em sequência, com revisão ao final. São duas tarefas
 de código dependentes entre si e uma de integração/documentação; dividir a
 implementação entre agentes não oferece paralelismo útil neste escopo.
+
+## Resultado da execução
+
+Implementado na branch `feat/identity-base`, diretamente nesta sessão.
+`gradlew.bat check`: 236 testes, zero falhas, zero erros e zero testes ignorados.
+JaCoCo: 99,2% de linhas e 100% de branches; `git diff --check` sem erros.
+
+A revisão independente apontou uma falha ao salvar novamente o objeto original
+com auditoria ainda nula. O teste de regressão reproduziu a violação de NOT NULL;
+o adaptador passou a preservar a auditoria persistida antes do merge. O teste
+ficou verde e a suíte completa foi executada novamente com sucesso.
+
+Decisão de execução: usar a branch dedicada existente e logs em
+`build/identity-work`, sem criar outro worktree. Autenticação permanece no segundo PR.

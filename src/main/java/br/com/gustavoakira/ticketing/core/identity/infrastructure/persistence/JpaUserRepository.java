@@ -19,7 +19,9 @@ public class JpaUserRepository implements UserRepository {
     @Override
     @Transactional
     public User save(User user) {
-        return users.saveAndFlush(UserJpaEntity.fromDomain(user)).toDomain();
+        var entity = UserJpaEntity.fromDomain(user);
+        users.findById(user.getId()).ifPresent(entity::preserveAuditFrom);
+        return users.saveAndFlush(entity).toDomain();
     }
 
     @Override

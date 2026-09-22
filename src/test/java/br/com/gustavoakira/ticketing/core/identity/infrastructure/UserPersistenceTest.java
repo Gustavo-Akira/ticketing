@@ -169,6 +169,16 @@ class UserPersistenceTest {
         }
     }
 
+    @Test
+    void savingOriginalObjectAgainPreservesPersistedAudit() {
+        var original = new User("Ana", email(), Set.of(Role.CUSTOMER));
+        var saved = users.save(original);
+        var again = users.save(original);
+        assertThat(again.getId()).isEqualTo(saved.getId());
+        assertThat(again.getCreatedAt()).isEqualTo(saved.getCreatedAt());
+        assertThat(again.getUpdatedAt()).isEqualTo(saved.getUpdatedAt());
+        assertThat(users.findById(saved.getId()).orElseThrow().getRoles()).containsExactly(Role.CUSTOMER);
+    }
     private boolean insertAfter(CountDownLatch start, String email, Role role) throws InterruptedException {
         if (!start.await(30, TimeUnit.SECONDS)) throw new IllegalStateException("start latch timed out");
         try {

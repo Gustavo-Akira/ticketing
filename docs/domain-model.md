@@ -1,5 +1,39 @@
 # Domain Model
 
+## User e Role
+
+Representam uma identidade que pode comprar ingressos, organizar eventos ou
+administrar o sistema, conforme as roles explicitamente atribuídas.
+
+```text
+User
+- id
+- name
+- email
+- roles
+- createdAt
+- updatedAt
+```
+
+`Role` admite `CUSTOMER`, `ORGANIZER` e `ADMIN`. Um usuário possui pelo menos uma
+role e pode acumular várias; não há hierarquia implícita. O conjunto exposto pelo
+domínio é imutável.
+
+Nome é obrigatório, com até 255 caracteres. E-mail é obrigatório, com até 254
+caracteres após normalização: remover espaços externos e converter para minúsculas
+com `Locale.ROOT`. O formato básico exige uma parte local e um domínio separados
+por um único `@`, sem espaços; não há validação DNS. A unicidade é garantida no banco.
+
+IDs seguem o UUID temporal usado por Event. Datas são geradas pelo banco na
+inserção, e a reconstituição preserva ID e auditoria. O domínio exige ao menos uma
+role; a tabela de associações garante valores válidos, ausência de duplicação e
+referência a um usuário existente. Ela não impõe cardinalidade mínima por trigger.
+
+Esta base não define credenciais, cadastro público nem operações de alteração de
+perfil/roles. Autenticação e autorização serão implementadas em outro PR.
+
+---
+
 ## Event
 
 Representa um evento comercializável.

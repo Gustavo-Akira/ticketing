@@ -57,6 +57,11 @@ public class UserJpaEntity {
         return entity;
     }
 
+    void preserveAuditFrom(UserJpaEntity persisted) {
+        this.createdAt = persisted.createdAt;
+        this.updatedAt = persisted.updatedAt;
+    }
+
     User toDomain() {
         return User.restore(id, name, email, roles, createdAt, updatedAt);
     }
