@@ -82,7 +82,8 @@ O PUT exige todos os campos abaixo:
   "row": "A",
   "number": "15",
   "price": 120.50,
-  "currency": "BRL"
+  "currency": "BRL",
+  "expectedVersion": 0
 }
 ```
 
@@ -92,7 +93,7 @@ Uma tentativa de mudar a localização retorna `409`, sem salvar nenhum campo.
 Localização duplicada no mesmo evento ou conflito de atualização concorrente
 também retornam `409`. ID, vínculo com evento e status do assento são preservados.
 A resposta contém `id`, `eventId`, `section`, `row`, `number`, `price`,
-`currency` e `status`.
+`currency`, `status` e `version` (também na listagem).
 
 A listagem segue a paginação de eventos, ordenada por ID e restrita ao evento
 informado. Assento inexistente ou pertencente a outro evento retorna `404`.
@@ -100,12 +101,20 @@ Setor, fila e número exigem texto não vazio com até 100, 50 e 20 caracteres,
 respectivamente. Preço e moeda seguem as validações do modelo abaixo.
 Autenticação e CSRF seguem a configuração existente; erros usam Problem Details.
 
-Cada atualização é transacional e consulta o evento sem bloqueio pessimista.
-A regra de localização usa o status lido nessa consulta, sem serializar a escrita
-com alterações simultâneas do evento. Edições administrativas concorrentes são
-consideradas raras nesta etapa; a estratégia de controle de concorrência será
-avaliada separadamente após reproduzir o cenário de lost update.
-O `@Version` já existente no assento permanece. Não há endpoint de criação de assentos.
+O cliente deve enviar em `expectedVersion` a `version` recebida na consulta do
+assento, como número inteiro JSON não negativo dentro do intervalo de `Long`.
+Versão ausente, nula, negativa ou em formato inválido retorna `400`; versão divergente ou
+disputa durante a gravação retorna `409`, sem sobrescrever a edição vencedora.
+Após um conflito, releia o assento, revise a edição e envie a versão atual;
+não repita automaticamente o formulário antigo. Clientes anteriores precisam
+passar a enviar esse campo obrigatório.
+
+Cada atualização é transacional, mantém o `@Version` na persistência e consulta
+o evento sem bloqueio pessimista. A regra de localização usa o status lido nessa
+consulta, sem serializar a escrita com alterações simultâneas do evento.
+A [ADR-0007](docs/adr/0007-seat-metadata-optimistic-concurrency.md) documenta a
+proteção de metadados. A race condition de reservation será tratada em uma etapa
+futura, conforme a ADR-0002; a proteção deste PUT não implementa reserva atômica.
 
 ## Modelo
 

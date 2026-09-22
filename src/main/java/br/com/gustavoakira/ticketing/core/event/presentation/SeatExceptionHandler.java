@@ -1,5 +1,6 @@
 package br.com.gustavoakira.ticketing.core.event.presentation;
 
+import br.com.gustavoakira.ticketing.core.event.application.ConcurrentSeatModificationException;
 import br.com.gustavoakira.ticketing.core.event.application.EventNotDraftException;
 import br.com.gustavoakira.ticketing.core.event.application.EventNotFoundException;
 import br.com.gustavoakira.ticketing.core.event.application.InvalidSeatConfigurationException;
@@ -36,10 +37,16 @@ public class SeatExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
     }
 
-    @ExceptionHandler({DataIntegrityViolationException.class, OptimisticLockingFailureException.class})
+    @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail persistenceConflict(RuntimeException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
-                "Seat update conflicts with an existing location or a concurrent change");
+                "Seat update conflicts with an existing location");
+    }
+
+    @ExceptionHandler({ConcurrentSeatModificationException.class, OptimisticLockingFailureException.class})
+    public ProblemDetail concurrentModification(RuntimeException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "Seat was modified by another request; reload it before updating");
     }
 
     @ExceptionHandler(EventNotDraftException.class)

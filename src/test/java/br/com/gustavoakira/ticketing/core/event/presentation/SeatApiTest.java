@@ -35,7 +35,7 @@ class SeatApiTest {
     UUID eventId;
     UUID seatId;
     static final String BODY = """
-            {"section":"Floor","row":"A","number":"1","price":150.50,"currency":"USD"}
+            {"section":"Floor","row":"A","number":"1","price":150.50,"currency":"USD","expectedVersion":0}
             """;
 
     @BeforeEach
@@ -45,6 +45,55 @@ class SeatApiTest {
         jdbc.update("delete from events");
         eventId = event();
         seatId = seat(eventId, "1");
+    }
+
+    @Test
+    void staleAdministrativeEditCannotOverwriteCommittedPriceChange() throws Exception {
+        // Two editors read the same representation before either submits a PUT.
+        for (String editor : new String[]{"alice", "bob"}) {
+            mvc.perform(get(path()).with(user(editor)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.price").value(100));
+        }
+        update(BODY, 200);
+        var afterFirstEdit = jdbc.queryForMap("select * from seats where id = ?", seatId);
+
+        // Bob changes the row but sends the old price and currency with version zero.
+        update(BODY.replace("\"A\"", "\"B\"").replace("150.50", "100").replace("USD", "BRL"), 409);
+        assertThat(jdbc.queryForMap("select * from seats where id = ?", seatId)).isEqualTo(afterFirstEdit);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"missing", "null", "-1", "-0.5", "0.5", "0.0", "0e0", "\"0\"", "true", "9223372036854775808"})
+    void missingOrInvalidExpectedVersionCannotWrite(String version) throws Exception {
+        var before = jdbc.queryForMap("select * from seats where id = ?", seatId);
+        String body = version.equals("missing")
+                ? BODY.replace(",\"expectedVersion\":0", "")
+                : BODY.replace("\"expectedVersion\":0", "\"expectedVersion\":" + version);
+        update(body, 400);
+        assertThat(jdbc.queryForMap("select * from seats where id = ?", seatId)).isEqualTo(before);
+    }
+
+    @Test
+    void futureExpectedVersionCannotWrite() throws Exception {
+        var before = jdbc.queryForMap("select * from seats where id = ?", seatId);
+        update(BODY.replace("\"expectedVersion\":0", "\"expectedVersion\":1"), 409);
+        assertThat(jdbc.queryForMap("select * from seats where id = ?", seatId)).isEqualTo(before);
+    }
+
+    @Test
+    void rereadingVersionAllowsAnExplicitlyReconciledEdit() throws Exception {
+        mvc.perform(get(path()).with(user("reader")))
+                .andExpect(jsonPath("$.version").value(0));
+        mvc.perform(put(path()).with(user("editor")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1));
+        mvc.perform(get(path()).with(user("reader")))
+                .andExpect(jsonPath("$.version").value(1)).andExpect(jsonPath("$.price").value(150.50));
+
+        update(BODY.replace("\"expectedVersion\":0", "\"expectedVersion\":1").replace("\"A\"", "\"B\""), 200);
+        mvc.perform(get(path()).with(user("reader")))
+                .andExpect(jsonPath("$.version").value(2)).andExpect(jsonPath("$.row").value("B"))
+                .andExpect(jsonPath("$.price").value(150.50)).andExpect(jsonPath("$.currency").value("USD"));
     }
 
     @Test
@@ -62,6 +111,7 @@ class SeatApiTest {
             mvc.perform(get(base() + "?page=" + page + "&size=1").with(user("reader")))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(1))
                     .andExpect(jsonPath("$.content[0].id").value(ordered.get(page).toString()))
+                    .andExpect(jsonPath("$.content[0].version").value(0))
                     .andExpect(jsonPath("$.page").value(page)).andExpect(jsonPath("$.size").value(1))
                     .andExpect(jsonPath("$.totalElements").value(2)).andExpect(jsonPath("$.totalPages").value(2));
         }

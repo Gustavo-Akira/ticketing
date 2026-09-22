@@ -6,9 +6,9 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public record SeatResult(UUID id, UUID eventId, String section, String row, String number,
-                         BigDecimal price, String currency, SeatStatus status) {
+                         BigDecimal price, String currency, SeatStatus status, Long version) {
     static SeatResult from(Seat seat) {
         return new SeatResult(seat.getId(), seat.getEventId(), seat.getSection(), seat.getRow(),
-                seat.getNumber(), seat.getPrice(), seat.getCurrency(), seat.getStatus());
+                seat.getNumber(), seat.getPrice(), seat.getCurrency(), seat.getStatus(), seat.getVersion());
     }
 }

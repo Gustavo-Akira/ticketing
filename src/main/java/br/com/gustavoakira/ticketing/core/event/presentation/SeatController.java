@@ -36,7 +36,7 @@ public class SeatController {
     @PutMapping("/{id}")
     public SeatResult update(@PathVariable UUID eventId, @PathVariable UUID id,
                              @RequestBody SeatRequest request) {
-        return update.execute(eventId, id, request.toDetails());
+        return update.execute(eventId, id, request.toDetails(), request.expectedVersion());
     }
 
     @PostMapping("create-seats")
