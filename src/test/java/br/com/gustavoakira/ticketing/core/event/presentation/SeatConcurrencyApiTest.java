@@ -88,7 +88,7 @@ class SeatConcurrencyApiTest {
     }
 
     private MvcResult update(MockMvc mvc, String path, String body) throws Exception {
-        return mvc.perform(put(path).with(user("editor")).with(csrf())
+        return mvc.perform(put(path).with(user("editor").roles("ORGANIZER"))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andReturn();
     }

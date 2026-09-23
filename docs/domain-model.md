@@ -29,8 +29,21 @@ inserção, e a reconstituição preserva ID e auditoria. O domínio exige ao me
 role; a tabela de associações garante valores válidos, ausência de duplicação e
 referência a um usuário existente. Ela não impõe cardinalidade mínima por trigger.
 
-Esta base não define credenciais, cadastro público nem operações de alteração de
-perfil/roles. Autenticação e autorização serão implementadas em outro PR.
+Cadastro público atribui somente CUSTOMER. ADMIN concede ORGANIZER de forma
+aditiva e idempotente; não existe hierarquia automática de roles. O comando
+administrativo cria uma nova conta ADMIN e rejeita e-mail já existente.
+
+Credenciais ficam em `user_credentials`, com hash BCrypt custo 12 e FK para User.
+PasswordPolicy valida 12 a 64 caracteres Unicode e até 72 bytes UTF-8 sem trim.
+Usuários legados podem existir sem credencial; login é negado nesse caso.
+
+RefreshSession identifica uma sessão de login independente, com userId,
+createdAt, expiresAt (limite absoluto de 7 dias) e revokedAt. RefreshToken
+identifica um segredo pelo hash SHA-256, com sessionId e consumedAt. Renovação
+consome o token anterior e cria seu sucessor atomicamente; reutilização revoga
+a sessão. Tokens consumidos são preservados para detectar replay. Logout revoga
+somente a sessão indicada. JWT de acesso tem duração de 15 minutos e permanece
+válido até expirar. Não há vínculo User→Event nesta entrega.
 
 ---
 

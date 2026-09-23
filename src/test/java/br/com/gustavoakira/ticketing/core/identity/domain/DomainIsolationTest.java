@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DomainIsolationTest {
     @ParameterizedTest
-    @ValueSource(classes = {User.class, UserDetails.class, Role.class})
+    @ValueSource(classes = {User.class, UserDetails.class, Role.class, PasswordPolicy.class, RefreshSession.class, RefreshToken.class})
     void domainDoesNotDependOnFrameworks(Class<?> model) {
         var annotations = Stream.concat(Arrays.stream(model.getAnnotations()),
                 Stream.concat(Arrays.stream(model.getDeclaredFields()).flatMap(f -> Arrays.stream(f.getAnnotations())),
