@@ -9,3 +9,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+
+identity:
+  jwt:
+    private-key: ${IDENTITY_JWT_PRIVATE_KEY:}
+    public-key: ${IDENTITY_JWT_PUBLIC_KEY:}
+    issuer: ${IDENTITY_JWT_ISSUER:}
+    audience: ${IDENTITY_JWT_AUDIENCE:}

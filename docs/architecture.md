@@ -54,8 +54,12 @@ Motivos:
 ```text
 identity/
   domain/
+  application/
   port/
   infrastructure/persistence/
+  infrastructure/security/
+  presentation/
+  presentation/cli/
 
 event/
   domain/
@@ -85,9 +89,20 @@ Cada feature contém suas responsabilidades.
 
 `identity` possui domínio independente de Spring/JPA e uma porta de repositório
 implementada por um adaptador JPA. O adaptador delimita as transações de gravação
-e leitura, incluindo a conversão das roles para um snapshot imutável. A base
-persiste usuários e múltiplas roles; application, presentation e integração de
-autenticação serão introduzidos na próxima entrega.
+e leitura, incluindo a conversão das roles para um snapshot imutável. Casos de uso
+transacionais coordenam cadastro, credenciais, login, refresh e concessão de ORGANIZER.
+Adaptadores JDBC armazenam credenciais/sessões e fazem concessões aditivas; participam
+da mesma transação de banco usada pelo JPA. O domínio não depende desses adaptadores.
+
+JWT RS256 é emitido por uma porta de aplicação e validado pelo Resource Server do
+Spring Security. A matriz de rotas distingue autenticação e roles independentes.
+Refresh opaco usa hash SHA-256; renovação/logout bloqueiam a sessão com FOR UPDATE.
+O token é relido após o bloqueio para detectar consumo concorrente. Reutilização
+retorna resultado rejeitado, confirmando revogação antes da resposta HTTP 401.
+
+A entrada CLI `identity create-admin` inicia contexto sem HTTP e sem beans JWT,
+utiliza o mesmo caso de criação de contas e encerra após executar. Propriedade
+de eventos não é avaliada nesta entrega.
 
 Não teremos diretórios globais gigantes de `controllers`, `services` e `repositories`.
 

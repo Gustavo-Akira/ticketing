@@ -5,7 +5,19 @@ organizado por feature conforme ADR-0001.
 
 ## Executar
 
-Requisitos: Docker com Compose. A partir desta pasta:
+Requisitos: Docker com Compose e OpenSSL para gerar as chaves locais. A partir desta pasta,
+gere uma vez as chaves de desenvolvimento (diretório ignorado pelo Git):
+
+```sh
+mkdir -p .local/identity
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out .local/identity/private.pem
+openssl pkey -in .local/identity/private.pem -pubout -out .local/identity/public.pem
+```
+
+No PowerShell, crie o diretório com `New-Item -ItemType Directory -Force .local/identity`.
+Proteja a chave privada e permita sua leitura pelo usuário `ticketing` do container.
+O Compose monta as chaves somente para leitura. Em produção, use chaves próprias,
+issuer/audience do ambiente e HTTPS. Em seguida:
 
 ```sh
 docker compose up --build -d
@@ -20,14 +32,19 @@ Para executar fora do Compose, use JDK 25, inicie `docker compose up -d postgres
 e execute `./gradlew bootRun` (`gradlew.bat bootRun` no Windows).
 Configure `DB_URL`, `DB_USERNAME` e `DB_PASSWORD` conforme o ambiente.
 
-Spring Security mantém a configuração padrão do bootstrap: autenticação obrigatória
-e CSRF ativo. O usuário local padrão é `user`, com senha gerada no log de inicialização;
-fora do Compose, `SPRING_SECURITY_USER_NAME` e `SPRING_SECURITY_USER_PASSWORD` permitem
-configurá-los. Escritas exigem uma sessão e seu token CSRF válido no header
-`X-CSRF-TOKEN`; autenticação Basic sozinha não remove essa exigência.
-Os testes da API exercitam requisições autenticadas com e sem CSRF.
+Fora do Compose, configure `IDENTITY_JWT_PRIVATE_KEY` e `IDENTITY_JWT_PUBLIC_KEY`
+com recursos `file:/caminho/arquivo.pem`, além de `IDENTITY_JWT_ISSUER` e
+`IDENTITY_JWT_AUDIENCE`. Chaves inválidas/ausentes impedem iniciar o servidor HTTP.
+O comando administrativo descrito abaixo usa somente a configuração de banco.
+As chaves em `src/test/resources/identity` são fixtures públicas exclusivas dos testes
+e não devem ser utilizadas para executar a aplicação.
 
-## Base de identity
+Spring Security usa JWT RS256 via `Authorization: Bearer <accessToken>`, sem Basic,
+form login ou sessão HTTP. Não existe usuário padrão. Como a autenticação não usa
+cookies, esta API não exige token CSRF. Consultas exigem autenticação; escritas em
+eventos e assentos exigem `ORGANIZER`.
+
+## Identity e autenticação
 
 O módulo `identity` contém o domínio de usuário e sua persistência. Cada usuário
 possui UUID temporal, nome, e-mail único, datas de auditoria e uma ou mais roles:
@@ -40,9 +57,76 @@ na mesma transação nas tabelas `users` e `user_roles`, criadas pela migration 
 O repositório permite salvar e consultar por ID ou e-mail, retornando snapshots
 de domínio com roles imutáveis e auditoria gerada pelo banco.
 
-Esta entrega é a base de identity. Cadastro, senha, login e autorização por role
-serão tratados no próximo PR; a configuração atual do Spring Security permanece
-ativa. O módulo ainda não expõe endpoints nem cria contas administrativas.
+O cadastro público cria somente CUSTOMER. ADMIN concede ORGANIZER de forma
+idempotente e preserva as roles anteriores. ADMIN sozinho não pode escrever eventos;
+pode conceder ORGANIZER ao próprio usuário. Propriedade de eventos será outro PR:
+nesta entrega, um ORGANIZER pode gerenciar qualquer evento.
+
+| Método e rota | Entrada JSON | Resultado |
+| --- | --- | --- |
+| `POST /auth/register` | `name`, `email`, `password` | `201`, perfil sem credenciais |
+| `POST /auth/login` | `email`, `password` | `200`, accessToken e refreshToken |
+| `POST /auth/refresh` | `refreshToken` | `200`, novo par de tokens |
+| `POST /auth/logout` | `refreshToken` | `204`, revoga a sessão informada |
+| `PUT /users/{id}/roles/organizer` | Sem corpo, Bearer ADMIN | `204`, concede ORGANIZER |
+
+Cadastro não inicia sessão; envie os dados ao login após cadastrar. Campos devem
+ser strings; campos desconhecidos (incluindo roles) são rejeitados. A senha possui
+12 a 64 caracteres e até 72 bytes UTF-8, sem trim ou regras de composição. Apenas
+seu hash BCrypt custo 12 é persistido, separado do perfil.
+
+```sh
+curl -X POST http://localhost:8080/auth/register -H 'Content-Type: application/json' \
+  -d '{"name":"Ana","email":"ana@example.com","password":"uma senha de exemplo"}'
+curl -X POST http://localhost:8080/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"ana@example.com","password":"uma senha de exemplo"}'
+curl http://localhost:8080/events -H 'Authorization: Bearer <accessToken>'
+curl -X POST http://localhost:8080/auth/refresh -H 'Content-Type: application/json' \
+  -d '{"refreshToken":"<refreshToken>"}'
+curl -X POST http://localhost:8080/auth/logout -H 'Content-Type: application/json' \
+  -d '{"refreshToken":"<refreshToken>"}'
+curl -X PUT 'http://localhost:8080/users/<id>/roles/organizer' -H 'Authorization: Bearer <adminAccessToken>'
+```
+
+O par contém `accessToken`, `tokenType: "Bearer"`, `expiresIn: 900`, `refreshToken`
+e `refreshExpiresAt`; respostas com tokens usam `Cache-Control: no-store`.
+JWT dura 15 minutos. A sessão de renovação dura no máximo 7 dias desde o login.
+Cada renovação substitui o refresh, sem estender esse limite. O banco guarda somente
+SHA-256 do segredo aleatório de 32 bytes. Não faça renovações paralelas nem repita
+automaticamente o refresh antigo: reutilização revoga toda a cadeia daquela sessão.
+Um novo login cria uma sessão independente.
+
+Logout pode usar refresh já consumido e é idempotente; não exige access token válido.
+JWTs emitidos continuam válidos até expirar, inclusive após logout/reutilização.
+Roles concedidas aparecem somente no próximo JWT, obtido por login ou renovação.
+Usuários legados sem credenciais não podem fazer login; este PR não cria senhas
+para eles. Recuperação de senha, verificação de e-mail e limpeza periódica de sessões
+expiradas ficam fora deste escopo.
+
+Erros usam Problem Details: entrada inválida `400`, login/refresh inválido `401`,
+role insuficiente `403`, usuário alvo ausente `404` e e-mail duplicado `409`.
+
+### Criar o primeiro ADMIN
+
+No servidor, com as variáveis de banco configuradas, execute em terminal interativo:
+
+```sh
+java -jar build/libs/core-0.0.1-SNAPSHOT.jar identity create-admin --name Admin --email admin@example.com
+```
+
+Com o serviço Compose em execução:
+
+```sh
+docker compose exec app java -jar app.jar identity create-admin --name Admin --email admin@example.com
+```
+
+Para criar o ADMIN antes de iniciar o serviço HTTP, suba apenas `postgres` e use
+`docker compose run --rm app identity create-admin --name Admin --email admin@example.com`
+em terminal com TTY. O comando não abre servidor HTTP nem carrega chaves JWT.
+Ele solicita e confirma a senha sem eco, cria somente ADMIN e encerra. Sem console,
+com senha inválida ou e-mail existente, falha sem promover/resetar a conta. Não aceita
+senha por argumento. Código de saída: `0` sucesso, `2` entrada/conta inválida,
+`1` falha de execução/inicialização. Depois, faça login pela API.
 
 ## API de eventos
 
@@ -74,7 +158,7 @@ ordenada por ID crescente. A página começa em zero, com tamanho de 1 a 100
 Página além do resultado retorna `content: []`.
 Erros de entrada retornam `400`; ID inexistente retorna `404`, com corpo
 `application/problem+json` (`status`, `title`, `detail`). Falhas de autenticação
-e CSRF continuam sob responsabilidade do Spring Security.
+e autorização retornam `401` e `403` pelo Spring Security.
 
 Cada escrita é transacional. O PUT atribui `updated_at = statement_timestamp()`
 explicitamente e preserva `created_at`. Atualizações concorrentes seguem
@@ -116,7 +200,7 @@ A listagem segue a paginação de eventos, ordenada por ID e restrita ao evento
 informado. Assento inexistente ou pertencente a outro evento retorna `404`.
 Setor, fila e número exigem texto não vazio com até 100, 50 e 20 caracteres,
 respectivamente. Preço e moeda seguem as validações do modelo abaixo.
-Autenticação e CSRF seguem a configuração existente; erros usam Problem Details.
+Consultas exigem JWT; escritas exigem ORGANIZER; erros usam Problem Details.
 
 O cliente deve enviar em `expectedVersion` a `version` recebida na consulta do
 assento, como número inteiro JSON não negativo dentro do intervalo de `Long`.

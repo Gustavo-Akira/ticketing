@@ -21,6 +21,12 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/ticketing
       DB_USERNAME: ticketing
       DB_PASSWORD: ${DB_PASSWORD:-ticketing}
+      IDENTITY_JWT_PRIVATE_KEY: file:/run/identity/private.pem
+      IDENTITY_JWT_PUBLIC_KEY: file:/run/identity/public.pem
+      IDENTITY_JWT_ISSUER: ${IDENTITY_JWT_ISSUER:-http://localhost:8080}
+      IDENTITY_JWT_AUDIENCE: ${IDENTITY_JWT_AUDIENCE:-ticketing-api}
+    volumes:
+      - ./.local/identity:/run/identity:ro
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

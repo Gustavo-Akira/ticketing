@@ -1,6 +1,7 @@
 .git
 .gradle
 build
+.local
 docs
 .github
 *.md

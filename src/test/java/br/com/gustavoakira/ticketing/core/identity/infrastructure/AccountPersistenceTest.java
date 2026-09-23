@@ -85,4 +85,14 @@ class AccountPersistenceTest {
         assertThat(credentials.findHash(customer.id())).isEqualTo(before);
         assertThat(users.findById(customer.id()).orElseThrow().getRoles()).containsExactly(Role.CUSTOMER);
     }
+    @Test void concurrentOrganizerGrantsPreserveExistingRoles() throws Exception {
+        var user = create.execute("Admin", "admin@example.com", PASSWORD, Set.of(Role.ADMIN, Role.CUSTOMER));
+        var start = new CountDownLatch(1);
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            Callable<Boolean> call = () -> { start.await(); grant.execute(user.getId()); return true; };
+            var a = pool.submit(call); var b = pool.submit(call); start.countDown();
+            assertThat(a.get(20, TimeUnit.SECONDS)).isTrue(); assertThat(b.get(20, TimeUnit.SECONDS)).isTrue();
+        }
+        assertThat(users.findById(user.getId()).orElseThrow().getRoles()).containsExactlyInAnyOrder(Role.ADMIN, Role.CUSTOMER, Role.ORGANIZER);
+    }
 }

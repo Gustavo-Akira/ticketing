@@ -1,0 +1,11 @@
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+identity:
+  jwt:
+    private-key: classpath:identity/private.pem
+    public-key: classpath:identity/public.pem
+    issuer: https://identity.test
+    audience: ticketing-test

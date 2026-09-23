@@ -105,7 +105,8 @@ class RefreshSessionPersistenceTest {
     }
     @Test void failedSuccessorInsertionRollsBackConsumption() {
         String original = seed();
-        jdbc.execute("alter table refresh_tokens add constraint block_successor check (false) not valid");
+        UUID originalId = sessions.findToken(tokens.digest(original)).orElseThrow().id();
+        jdbc.execute("alter table refresh_tokens add constraint block_successor check (id = '" + originalId + "') not valid");
         try {
             assertThatThrownBy(() -> refresh.execute(original)).isInstanceOf(RuntimeException.class);
         } finally { jdbc.execute("alter table refresh_tokens drop constraint block_successor"); }

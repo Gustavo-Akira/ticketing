@@ -84,7 +84,7 @@ class SeatApiTest {
     void rereadingVersionAllowsAnExplicitlyReconciledEdit() throws Exception {
         mvc.perform(get(path()).with(user("reader")))
                 .andExpect(jsonPath("$.version").value(0));
-        mvc.perform(put(path()).with(user("editor")).with(csrf())
+        mvc.perform(put(path()).with(user("editor").roles("ORGANIZER"))
                         .contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1));
         mvc.perform(get(path()).with(user("reader")))
@@ -152,7 +152,7 @@ class SeatApiTest {
         for (UUID id : new UUID[]{event(), UUID.randomUUID()}) {
             mvc.perform(get("/events/" + id + "/seats/" + seatId).with(user("reader")))
                     .andExpect(status().isNotFound()).andExpect(jsonPath("$.status").value(404));
-            mvc.perform(put("/events/" + id + "/seats/" + seatId).with(user("editor")).with(csrf())
+            mvc.perform(put("/events/" + id + "/seats/" + seatId).with(user("editor").roles("ORGANIZER"))
                     .contentType(MediaType.APPLICATION_JSON).content(BODY)).andExpect(status().isNotFound());
         }
         seatId = UUID.randomUUID();
@@ -199,8 +199,8 @@ class SeatApiTest {
         mvc.perform(put(path()).with(user("editor")).contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isForbidden());
         mvc.perform(get(base() + "/bad-id").with(user("reader"))).andExpect(status().isBadRequest());
-        mvc.perform(post(base()).with(user("editor")).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(BODY))
-                .andExpect(status().isMethodNotAllowed());
+        mvc.perform(post(base()).with(user("editor").roles("ORGANIZER")).contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isForbidden());
     }
 
     static final String BATCH_BODY = """
@@ -289,28 +289,28 @@ class SeatApiTest {
     }
 
     @Test
-    void batchCreationRequiresAuthenticationAndCsrfAndValidEventId() throws Exception {
+    void batchCreationRequiresAuthenticationAndOrganizerAndValidEventId() throws Exception {
         var before = jdbc.queryForList("select * from seats order by id");
-        mvc.perform(post(base() + "/create-seats").with(csrf()).accept(MediaType.APPLICATION_JSON)
+        mvc.perform(post(base() + "/create-seats").accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON).content(BATCH_BODY))
                 .andExpect(status().isUnauthorized());
         mvc.perform(post(base() + "/create-seats").with(user("editor"))
                         .contentType(MediaType.APPLICATION_JSON).content(BATCH_BODY))
                 .andExpect(status().isForbidden());
-        mvc.perform(post("/events/bad-id/seats/create-seats").with(user("editor")).with(csrf())
+        mvc.perform(post("/events/bad-id/seats/create-seats").with(user("editor").roles("ORGANIZER"))
                         .contentType(MediaType.APPLICATION_JSON).content(BATCH_BODY))
                 .andExpect(status().isBadRequest());
         assertThat(jdbc.queryForList("select * from seats order by id")).isEqualTo(before);
     }
 
     private ResultActions create(String body, int expected) throws Exception {
-        return mvc.perform(post(base() + "/create-seats").with(user("editor")).with(csrf())
+        return mvc.perform(post(base() + "/create-seats").with(user("editor").roles("ORGANIZER"))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().is(expected));
     }
 
     private void update(String body, int expected) throws Exception {
-        mvc.perform(put(path()).with(user("editor")).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body))
+        mvc.perform(put(path()).with(user("editor").roles("ORGANIZER")).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().is(expected));
     }
     private String base() { return "/events/" + eventId + "/seats"; }

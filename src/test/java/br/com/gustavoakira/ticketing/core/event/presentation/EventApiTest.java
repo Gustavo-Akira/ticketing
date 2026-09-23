@@ -45,7 +45,7 @@ class EventApiTest {
 
     @Test
     void creationReturnsLocationAndPersistsDraftWithDatabaseTimestamps() throws Exception {
-        var response = mvc.perform(post("/events").with(user("editor")).with(csrf())
+        var response = mvc.perform(post("/events").with(user("editor").roles("ORGANIZER"))
                         .contentType(MediaType.APPLICATION_JSON).content(VALID))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Concert"))
@@ -68,7 +68,7 @@ class EventApiTest {
         UUID id = seed("Before");
         jdbc.update("update events set status = 'AVAILABLE', updated_at = '2000-01-01T00:00:00Z' where id = ?", id);
         var before = jdbc.queryForMap("select * from events where id = ?", id);
-        mvc.perform(put("/events/{id}", id).with(user("editor")).with(csrf())
+        mvc.perform(put("/events/{id}", id).with(user("editor").roles("ORGANIZER"))
                         .contentType(MediaType.APPLICATION_JSON).content(VALID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.toString()))
@@ -118,7 +118,7 @@ class EventApiTest {
         UUID id = UUID.randomUUID();
         mvc.perform(get("/events/{id}", id).with(user("reader")))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.status").value(404));
-        mvc.perform(put("/events/{id}", id).with(user("editor")).with(csrf())
+        mvc.perform(put("/events/{id}", id).with(user("editor").roles("ORGANIZER"))
                         .contentType(MediaType.APPLICATION_JSON).content(VALID))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.status").value(404));
         assertThat(jdbc.queryForObject("select count(*) from events", Long.class)).isZero();
@@ -132,10 +132,10 @@ class EventApiTest {
     })
     void invalidBodyReturns400WithoutWriting(String body) throws Exception {
         UUID id = seed("Unchanged");
-        mvc.perform(post("/events").with(user("editor")).with(csrf())
+        mvc.perform(post("/events").with(user("editor").roles("ORGANIZER"))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.status").value(400));
-        mvc.perform(put("/events/{id}", id).with(user("editor")).with(csrf())
+        mvc.perform(put("/events/{id}", id).with(user("editor").roles("ORGANIZER"))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.status").value(400));
         assertThat(jdbc.queryForObject("select name from events where id = ?", String.class, id)).isEqualTo("Unchanged");
@@ -145,7 +145,7 @@ class EventApiTest {
     @Test
     void oversizedNameIsRejected() throws Exception {
         String body = VALID.replace("Concert", "a".repeat(256));
-        mvc.perform(post("/events").with(user("editor")).with(csrf())
+        mvc.perform(post("/events").with(user("editor").roles("ORGANIZER"))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest());
     }
@@ -164,7 +164,7 @@ class EventApiTest {
     }
 
     @Test
-    void authenticationAndCsrfProtectionRemainEnabled() throws Exception {
+    void authenticationAndOrganizerRoleAreRequired() throws Exception {
         mvc.perform(get("/events").accept(MediaType.APPLICATION_JSON)).andExpect(status().isUnauthorized());
         mvc.perform(post("/events").with(user("editor"))
                         .contentType(MediaType.APPLICATION_JSON).content(VALID))
@@ -183,7 +183,7 @@ class EventApiTest {
         seedSeat(id);
         jdbc.update("update events set updated_at = '2000-01-01T00:00:00Z' where id = ?", id);
         var before = jdbc.queryForMap("select * from events where id = ?", id);
-        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")).with(csrf()))
+        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor").roles("ORGANIZER")))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
         assertThat(jdbc.queryForObject("select status from events where id = ?", String.class, id))
@@ -204,7 +204,7 @@ class EventApiTest {
         UUID id = seed("Concert");
         seedSeat(id);
         jdbc.update("update events set status = ? where id = ?", eventStatus, id);
-        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")).with(csrf()))
+        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor").roles("ORGANIZER")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
         assertThat(jdbc.queryForObject("select status from events where id = ?", String.class, id))
@@ -213,7 +213,7 @@ class EventApiTest {
 
     @Test
     void makingMissingEventAvailableReturns404() throws Exception {
-        mvc.perform(patch("/events/{id}/status/available", UUID.randomUUID()).with(user("editor")).with(csrf()))
+        mvc.perform(patch("/events/{id}/status/available", UUID.randomUUID()).with(user("editor").roles("ORGANIZER")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
         assertThat(jdbc.queryForObject("select count(*) from events", Long.class)).isZero();
@@ -221,15 +221,15 @@ class EventApiTest {
 
     @Test
     void statusChangeRejectsMalformedId() throws Exception {
-        mvc.perform(patch("/events/not-a-uuid/status/available").with(user("editor")).with(csrf()))
+        mvc.perform(patch("/events/not-a-uuid/status/available").with(user("editor").roles("ORGANIZER")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
     }
 
     @Test
-    void statusChangeRequiresAuthenticationAndCsrf() throws Exception {
+    void statusChangeRequiresAuthenticationAndOrganizer() throws Exception {
         UUID id = seed("Concert");
-        mvc.perform(patch("/events/{id}/status/available", id).with(csrf()).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(patch("/events/{id}/status/available", id).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnauthorized());
         mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")))
                 .andExpect(status().isForbidden());
@@ -245,7 +245,7 @@ class EventApiTest {
         }
         var before = jdbc.queryForMap("select * from events where id = ?", id);
 
-        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")).with(csrf()))
+        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor").roles("ORGANIZER")))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(jsonPath("$.status").value(409))
@@ -261,7 +261,7 @@ class EventApiTest {
         jdbc.update("update events set status = ? where id = ?", eventStatus, id);
         var before = jdbc.queryForMap("select * from events where id = ?", id);
 
-        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor")).with(csrf()))
+        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor").roles("ORGANIZER")))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(jsonPath("$.status").value(409))
