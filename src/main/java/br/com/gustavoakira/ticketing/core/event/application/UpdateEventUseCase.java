@@ -15,7 +15,9 @@ public class UpdateEventUseCase {
     }
 
     @Transactional
-    public EventResult execute(UUID id, EventDetails details) {
+    public EventResult execute(UUID id, EventDetails details, UUID actorId) {
+        var event = events.findById(id).orElseThrow(() -> new EventNotFoundException(id));
+        EventOwnership.requireOwner(event, actorId);
         if (events.updateDetails(id, details.name(), details.startsAt()) == 0) {
             throw new EventNotFoundException(id);
         }

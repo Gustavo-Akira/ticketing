@@ -23,8 +23,9 @@ public class CreateSeatsBatchUseCase {
     }
 
     @Transactional
-    public void execute(UUID eventId, SeatBatchCreationCommand command){
+    public void execute(UUID eventId, SeatBatchCreationCommand command, UUID actorId){
         Event event = eventRepository.getEventByIdForUpdate(eventId).orElseThrow(()->new EventNotFoundException(eventId));
+        EventOwnership.requireOwner(event, actorId);
         if (event.getStatus() != EventStatus.DRAFT){
             throw new EventNotDraftException("Event status must be DRAFT to update/create seats");
         }

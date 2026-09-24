@@ -18,12 +18,13 @@ public class UpdateSeatUseCase {
     }
 
     @Transactional
-    public SeatResult execute(UUID eventId, UUID id, SeatDetails details, Long expectedVersion) {
+    public SeatResult execute(UUID eventId, UUID id, SeatDetails details, Long expectedVersion, UUID actorId) {
         if (expectedVersion == null || expectedVersion < 0) {
             throw new IllegalArgumentException("expectedVersion must be a non-negative integer");
         }
         var event = events.findById(eventId)
                 .orElseThrow(() -> new EventNotFoundException(eventId));
+        EventOwnership.requireOwner(event, actorId);
         var seat = seats.findByIdAndEventId(id, eventId)
                 .orElseThrow(() -> new SeatNotFoundException(id));
         if (!expectedVersion.equals(seat.getVersion())) {

@@ -6,6 +6,8 @@ import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 @RestController
 @RequestMapping("/events/{eventId}/seats")
@@ -35,13 +37,14 @@ public class SeatController {
 
     @PutMapping("/{id}")
     public SeatResult update(@PathVariable UUID eventId, @PathVariable UUID id,
-                             @RequestBody SeatRequest request) {
-        return update.execute(eventId, id, request.toDetails(), request.expectedVersion());
+                             @RequestBody SeatRequest request, @AuthenticationPrincipal Jwt jwt) {
+        return update.execute(eventId, id, request.toDetails(), request.expectedVersion(), UUID.fromString(jwt.getSubject()));
     }
 
     @PostMapping("create-seats")
-    public ResponseEntity<Void> createSeats(@PathVariable UUID eventId, @RequestBody SeatBatchCreationRequest request) {
-        create.execute(eventId, request.toCommand());
+    public ResponseEntity<Void> createSeats(@PathVariable UUID eventId, @RequestBody SeatBatchCreationRequest request,
+                                           @AuthenticationPrincipal Jwt jwt) {
+        create.execute(eventId, request.toCommand(), UUID.fromString(jwt.getSubject()));
         return ResponseEntity.ok().build();
     }
 }

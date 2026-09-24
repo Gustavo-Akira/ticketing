@@ -1,6 +1,7 @@
 package br.com.gustavoakira.ticketing.core.event.presentation;
 
 import java.math.BigDecimal;
+import static br.com.gustavoakira.ticketing.core.event.support.OrganizerFixture.*;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,7 @@ class SeatApiTest {
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
         jdbc.update("delete from seats");
         jdbc.update("delete from events");
+        br.com.gustavoakira.ticketing.core.event.support.OrganizerFixture.seed(jdbc);
         eventId = event();
         seatId = seat(eventId, "1");
     }
@@ -84,7 +86,7 @@ class SeatApiTest {
     void rereadingVersionAllowsAnExplicitlyReconciledEdit() throws Exception {
         mvc.perform(get(path()).with(user("reader")))
                 .andExpect(jsonPath("$.version").value(0));
-        mvc.perform(put(path()).with(user("editor").roles("ORGANIZER"))
+        mvc.perform(put(path()).with(organizer())
                         .contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1));
         mvc.perform(get(path()).with(user("reader")))
@@ -152,7 +154,7 @@ class SeatApiTest {
         for (UUID id : new UUID[]{event(), UUID.randomUUID()}) {
             mvc.perform(get("/events/" + id + "/seats/" + seatId).with(user("reader")))
                     .andExpect(status().isNotFound()).andExpect(jsonPath("$.status").value(404));
-            mvc.perform(put("/events/" + id + "/seats/" + seatId).with(user("editor").roles("ORGANIZER"))
+            mvc.perform(put("/events/" + id + "/seats/" + seatId).with(organizer())
                     .contentType(MediaType.APPLICATION_JSON).content(BODY)).andExpect(status().isNotFound());
         }
         seatId = UUID.randomUUID();
@@ -199,7 +201,7 @@ class SeatApiTest {
         mvc.perform(put(path()).with(user("editor")).contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isForbidden());
         mvc.perform(get(base() + "/bad-id").with(user("reader"))).andExpect(status().isBadRequest());
-        mvc.perform(post(base()).with(user("editor").roles("ORGANIZER")).contentType(MediaType.APPLICATION_JSON).content(BODY))
+        mvc.perform(post(base()).with(organizer()).contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isForbidden());
     }
 
@@ -297,20 +299,20 @@ class SeatApiTest {
         mvc.perform(post(base() + "/create-seats").with(user("editor"))
                         .contentType(MediaType.APPLICATION_JSON).content(BATCH_BODY))
                 .andExpect(status().isForbidden());
-        mvc.perform(post("/events/bad-id/seats/create-seats").with(user("editor").roles("ORGANIZER"))
+        mvc.perform(post("/events/bad-id/seats/create-seats").with(organizer())
                         .contentType(MediaType.APPLICATION_JSON).content(BATCH_BODY))
                 .andExpect(status().isBadRequest());
         assertThat(jdbc.queryForList("select * from seats order by id")).isEqualTo(before);
     }
 
     private ResultActions create(String body, int expected) throws Exception {
-        return mvc.perform(post(base() + "/create-seats").with(user("editor").roles("ORGANIZER"))
+        return mvc.perform(post(base() + "/create-seats").with(organizer())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().is(expected));
     }
 
     private void update(String body, int expected) throws Exception {
-        mvc.perform(put(path()).with(user("editor").roles("ORGANIZER")).contentType(MediaType.APPLICATION_JSON).content(body))
+        mvc.perform(put(path()).with(organizer()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().is(expected));
     }
     private String base() { return "/events/" + eventId + "/seats"; }
@@ -318,6 +320,7 @@ class SeatApiTest {
     private UUID event() {
         UUID id = UUID.randomUUID();
         jdbc.update("insert into events(id, name, starts_at, status) values (?, 'Concert', '2027-01-01T00:00:00Z', 'DRAFT')", id);
+        jdbc.update("update events set owner_id = ? where id = ?", OWNER, id);
         return id;
     }
     private UUID seat(UUID event, String number) {
