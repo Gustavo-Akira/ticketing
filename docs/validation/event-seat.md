@@ -22,6 +22,23 @@
   O teste desativa sequential scan apenas na própria transação para verificar
   elegibilidade; não representa comparação de desempenho sob carga.
 
-Escopo corresponde ao PR 1 do roadmap: bootstrap e persistência. Regras de reserva,
-transições de venda e APIs são entregas futuras. A checagem de cobertura executa
+O escopo inicial acima corresponde ao PR 1 do roadmap: bootstrap e persistência.
+A integração posterior com Identity acrescenta os cenários abaixo. A checagem de cobertura executa
 em CI; sua obrigatoriedade para merge depende da proteção de branch do GitHub.
+
+## Propriedade de eventos
+
+- EventOwnershipApiTest usa JWTs assinados e PostgreSQL real para verificar
+  criação vinculada ao subject, gerenciamento pelo dono e 403 para outro
+  organizador (inclusive ADMIN com ORGANIZER), sem efeitos persistidos.
+- O contrato rejeita ownerId explícito/nulo no corpo e preserva leitura
+  autenticada de DRAFT e eventos legados. Assentos de outro evento não podem ser
+  alterados pela rota de um evento próprio.
+- OwnershipUseCasesTest verifica as quatro operações sem depender de HTTP,
+  rejeitando outro ator e legado antes de regras de status e consultas de assentos.
+- EventOwnershipMigrationTest executa upgrade V5–V6, preserva registros e
+  verifica FK contra proprietário inexistente ou exclusão de usuário referenciado.
+- Os testes anteriores de concorrência usam o proprietário autenticado e
+  continuam exigindo exatamente um sucesso e um conflito 409.
+
+Comando de validação: `./gradlew.bat check` (Java 25 e Docker).

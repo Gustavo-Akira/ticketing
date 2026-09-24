@@ -2,6 +2,19 @@
 
 Este documento contém regras que devem permanecer verdadeiras independentemente da implementação.
 
+## Propriedade de eventos
+
+- Todo novo evento possui proprietário obrigatório, derivado da identidade
+  autenticada na criação. O corpo HTTP não escolhe nem transfere esse vínculo.
+- Gerenciar evento ou assentos exige ORGANIZER e correspondência entre o ator e
+  o proprietário. ADMIN não ignora essas condições.
+- Rejeições de propriedade retornam 403 sem alterar evento, assentos ou auditoria.
+- Evento legado sem proprietário permanece consultável, mas não pode ser gerenciado.
+- Identidade do assento é verificada dentro do evento da rota: possuir um evento
+  não autoriza modificar assentos de outro.
+- Propriedade é imutável pela aplicação e não substitui regras de status,
+  bloqueios transacionais ou verificação de versão.
+
 ## Reservation
 
 ### INV-001 — Reserva all-or-nothing

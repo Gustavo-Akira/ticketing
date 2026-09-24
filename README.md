@@ -42,7 +42,8 @@ e não devem ser utilizadas para executar a aplicação.
 Spring Security usa JWT RS256 via `Authorization: Bearer <accessToken>`, sem Basic,
 form login ou sessão HTTP. Não existe usuário padrão. Como a autenticação não usa
 cookies, esta API não exige token CSRF. Consultas exigem autenticação; escritas em
-eventos e assentos exigem `ORGANIZER`.
+eventos e assentos exigem `ORGANIZER`. Para gerenciar um evento existente ou seus
+assentos, o usuário também precisa ser o proprietário do evento.
 
 ## Identity e autenticação
 
@@ -59,8 +60,16 @@ de domínio com roles imutáveis e auditoria gerada pelo banco.
 
 O cadastro público cria somente CUSTOMER. ADMIN concede ORGANIZER de forma
 idempotente e preserva as roles anteriores. ADMIN sozinho não pode escrever eventos;
-pode conceder ORGANIZER ao próprio usuário. Propriedade de eventos será outro PR:
-nesta entrega, um ORGANIZER pode gerenciar qualquer evento.
+pode conceder ORGANIZER ao próprio usuário. Cada novo evento pertence ao usuário
+identificado pelo subject do JWT de criação. Somente esse proprietário com
+ORGANIZER pode editar, publicar e gerenciar assentos. ADMIN com ORGANIZER também
+precisa ser o proprietário; não existe transferência de propriedade nesta API.
+
+A migration V6 adiciona `events.owner_id`, com FK para `users` sem exclusão em
+cascata. Eventos anteriores ficam com proprietário nulo: continuam consultáveis,
+mas seu gerenciamento retorna `403`. Nenhum usuário fictício é criado e nenhum
+evento ou assento é apagado. GETs continuam disponíveis a qualquer usuário
+autenticado, inclusive para eventos em DRAFT.
 
 | Método e rota | Entrada JSON | Resultado |
 | --- | --- | --- |
@@ -149,8 +158,9 @@ Criação e atualização recebem `Content-Type: application/json`:
 `name` deve conter de 1 a 255 caracteres, sem ser apenas espaços; `startsAt`
 é obrigatório e inclui fuso horário. Ambos são obrigatórios no PUT.
 O evento nasce em `DRAFT`; a atualização altera somente nome e data.
-ID, status e timestamps são definidos pelo servidor. A resposta contém
-`id`, `name`, `startsAt`, `status`, `createdAt` e `updatedAt`.
+ID, proprietário, status e timestamps são definidos pelo servidor. Enviar
+`ownerId` no corpo do POST ou PUT, inclusive nulo, retorna `400`. A resposta contém
+`id`, `name`, `startsAt`, `status`, `createdAt`, `updatedAt` e `ownerId`.
 
 A listagem retorna `content`, `page`, `size`, `totalElements` e `totalPages`,
 ordenada por ID crescente. A página começa em zero, com tamanho de 1 a 100
@@ -158,14 +168,16 @@ ordenada por ID crescente. A página começa em zero, com tamanho de 1 a 100
 Página além do resultado retorna `content: []`.
 Erros de entrada retornam `400`; ID inexistente retorna `404`, com corpo
 `application/problem+json` (`status`, `title`, `detail`). Falhas de autenticação
-e autorização retornam `401` e `403` pelo Spring Security.
+e autorização retornam `401` e `403`. Tentativa de gerenciar evento de outro
+organizador retorna `403`, antes das regras de estado e assentos, sem alterar dados.
 
 Cada escrita é transacional. O PUT atribui `updated_at = statement_timestamp()`
 explicitamente e preserva `created_at`. Atualizações concorrentes seguem
 last-write-wins; os timestamps não funcionam como controle de concorrência.
 
-Publicação e cancelamento terão use cases próprios em uma etapa futura.
-Criação de assentos, reservas e pagamentos permanecem no roadmap.
+Publicação usa `PATCH /events/{id}/status/available`; criação de assentos em lote
+usa `POST /events/{eventId}/seats/create-seats`. Ambas exigem o proprietário com
+ORGANIZER. Cancelamento, reservas e pagamentos permanecem no roadmap.
 
 ## API de assentos
 
@@ -200,7 +212,8 @@ A listagem segue a paginação de eventos, ordenada por ID e restrita ao evento
 informado. Assento inexistente ou pertencente a outro evento retorna `404`.
 Setor, fila e número exigem texto não vazio com até 100, 50 e 20 caracteres,
 respectivamente. Preço e moeda seguem as validações do modelo abaixo.
-Consultas exigem JWT; escritas exigem ORGANIZER; erros usam Problem Details.
+Consultas exigem JWT; escritas exigem ORGANIZER e propriedade do evento;
+erros usam Problem Details.
 
 O cliente deve enviar em `expectedVersion` a `version` recebida na consulta do
 assento, como número inteiro JSON não negativo dentro do intervalo de `Long`.
