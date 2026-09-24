@@ -42,3 +42,6 @@ em CI; sua obrigatoriedade para merge depende da proteção de branch do GitHub.
   continuam exigindo exatamente um sucesso e um conflito 409.
 
 Comando de validação: `./gradlew.bat check` (Java 25 e Docker).
+
+Execução local em 2026-09-23: 312 testes, zero falhas, erros ou testes ignorados.
+JaCoCo: 96,52% das linhas e 84,02% dos branches; os dois limites de 80% passaram.

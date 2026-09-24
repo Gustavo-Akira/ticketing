@@ -243,3 +243,14 @@ continuam consultáveis, mas operações de gerenciamento retornam 403.
 Recomendação: execução nativa nesta sessão, em sequência, porque as tarefas compartilham assinaturas e fixtures. Revisão independente ao final. Alternativa: subagente por tarefa com revisão entre tarefas, custando mais contextos. A tarefa 1 deve ser agrupada com a 2 na execução para evitar um commit com contrato de criação inconsistente.
 
 Auto-revisão do plano: spec coberta por modelo/migration (1), autorização/erros/concorrência (2), contrato HTTP e regressões (3), documentação/check (4). Os cinco focos de revisão possuem testes atribuídos; todas as assinaturas usam actorId como último argumento.
+
+## Registro de execução
+
+- [x] Modelo, migration V6 e política de propriedade implementados.
+- [x] Aplicação e controllers integrados ao subject do JWT.
+- [x] Contrato HTTP, fixtures e regressões de propriedade validados.
+- [x] Documentação atualizada e `gradlew.bat check` aprovado: 312 testes, 96,52% de linhas e 84,02% de branches.
+
+Execução nativa na branch `feat/event-identity-ownership`, no checkout existente.
+Testes diretos dos casos de uso foram agrupados em OwnershipUseCasesTest para
+compartilhar os cenários de acesso negado sem repetir infraestrutura.
