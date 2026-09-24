@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public class Event {
     private UUID id;
+    private UUID ownerId;
     private String name;
     private Instant startsAt;
     private EventStatus status;
@@ -15,9 +16,10 @@ public class Event {
 
     private Event() {}
 
-    public Event(String name, Instant startsAt) {
+    public Event(String name, Instant startsAt, UUID ownerId) {
         var details = new EventDetails(name, startsAt);
         this.id = UuidCreator.getTimeOrderedEpoch();
+        this.ownerId = Fields.required(ownerId, "ownerId");
         this.name = details.name();
         this.startsAt = details.startsAt();
         this.status = EventStatus.DRAFT;
@@ -25,10 +27,11 @@ public class Event {
 
     /** Reconstitutes persisted state without generating a new identity or resetting status. */
     public static Event restore(UUID id, String name, Instant startsAt, EventStatus status,
-                                Instant createdAt, Instant updatedAt) {
+                                Instant createdAt, Instant updatedAt, UUID ownerId) {
         var details = new EventDetails(name, startsAt);
         var event = new Event();
         event.id = Fields.required(id, "id");
+        event.ownerId = ownerId;
         event.name = details.name();
         event.startsAt = details.startsAt();
         event.status = Fields.required(status, "status");
@@ -38,6 +41,7 @@ public class Event {
     }
 
     public UUID getId() { return id; }
+    public UUID getOwnerId() { return ownerId; }
     public String getName() { return name; }
     public Instant getStartsAt() { return startsAt; }
     public EventStatus getStatus() { return status; }

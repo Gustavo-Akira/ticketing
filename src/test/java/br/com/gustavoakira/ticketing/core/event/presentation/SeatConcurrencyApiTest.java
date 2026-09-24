@@ -1,6 +1,7 @@
 package br.com.gustavoakira.ticketing.core.event.presentation;
 
 import br.com.gustavoakira.ticketing.core.event.port.SeatRepository;
+import static br.com.gustavoakira.ticketing.core.event.support.OrganizerFixture.*;
 import java.util.UUID;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
@@ -38,6 +39,7 @@ class SeatConcurrencyApiTest {
 
     @Test
     void simultaneousEditsOfTheSameVersionCommitExactlyOneAndReturn409ForTheOther() throws Exception {
+        seed(jdbc);
         var eventId = UUID.randomUUID();
         var seatId = UUID.randomUUID();
         jdbc.update("insert into events(id, name, starts_at, status) values (?, 'Concert', '2027-01-01T00:00:00Z', 'DRAFT')", eventId);
@@ -45,6 +47,7 @@ class SeatConcurrencyApiTest {
                 insert into seats(id, event_id, section, seat_row, seat_number, price, currency, status, version)
                 values (?, ?, 'Floor', 'A', '1', 100, 'BRL', 'AVAILABLE', 0)
                 """, seatId, eventId);
+        jdbc.update("update events set owner_id = ? where id = ?", OWNER, eventId);
         var mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
         var path = "/events/" + eventId + "/seats/" + seatId;
         var bothHaveRead = new CyclicBarrier(2);
@@ -88,7 +91,7 @@ class SeatConcurrencyApiTest {
     }
 
     private MvcResult update(MockMvc mvc, String path, String body) throws Exception {
-        return mvc.perform(put(path).with(user("editor").roles("ORGANIZER"))
+        return mvc.perform(put(path).with(organizer())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andReturn();
     }

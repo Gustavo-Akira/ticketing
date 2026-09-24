@@ -21,8 +21,9 @@ public class ChangeEventStatusToAvailableUseCase {
     }
 
     @Transactional
-    public void execute(UUID eventId) {
+    public void execute(UUID eventId, UUID actorId) {
         Event event = eventRepository.findById(eventId).orElseThrow(()->new EventNotFoundException(eventId));
+        EventOwnership.requireOwner(event, actorId);
         EventStatus expectedStatus = event.getStatus();
         if(!seatRepository.existsByEventId(eventId)){
             throw new EventHasNotSeatException(eventId);

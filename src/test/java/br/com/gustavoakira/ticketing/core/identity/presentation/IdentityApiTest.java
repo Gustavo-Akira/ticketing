@@ -34,7 +34,7 @@ class IdentityApiTest {
     MockMvc mvc;
     final JsonMapper json = new JsonMapper();
     static final String REGISTER = "{\"name\":\"Ana\",\"email\":\"ana@example.com\",\"password\":\"a valid password\"}";
-    @BeforeEach void setup() { mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build(); jdbc.update("delete from users"); }
+    @BeforeEach void setup() { mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build(); jdbc.update("delete from seats"); jdbc.update("delete from events"); jdbc.update("delete from users"); }
     @Test void registerLoginRefreshReplayAndLogout() throws Exception {
         mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON).content(REGISTER))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.roles[0]").value("CUSTOMER"))

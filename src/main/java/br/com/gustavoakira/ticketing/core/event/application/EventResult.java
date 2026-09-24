@@ -6,9 +6,9 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record EventResult(UUID id, String name, Instant startsAt, EventStatus status,
-                          Instant createdAt, Instant updatedAt) {
+                          Instant createdAt, Instant updatedAt, UUID ownerId) {
     static EventResult from(Event event) {
         return new EventResult(event.getId(), event.getName(), event.getStartsAt(),
-                event.getStatus(), event.getCreatedAt(), event.getUpdatedAt());
+                event.getStatus(), event.getCreatedAt(), event.getUpdatedAt(), event.getOwnerId());
     }
 }

@@ -4,6 +4,7 @@ import br.com.gustavoakira.ticketing.core.event.application.ConcurrentEventModif
 import br.com.gustavoakira.ticketing.core.event.application.EventHasNotSeatException;
 import br.com.gustavoakira.ticketing.core.event.application.EventNotDraftException;
 import br.com.gustavoakira.ticketing.core.event.application.EventNotFoundException;
+import br.com.gustavoakira.ticketing.core.event.application.EventAccessDeniedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -12,6 +13,11 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 @RestControllerAdvice(assignableTypes = EventController.class)
 public class EventExceptionHandler extends ResponseEntityExceptionHandler {
+    @ExceptionHandler(EventAccessDeniedException.class)
+    public ProblemDetail forbidden(EventAccessDeniedException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
+    }
+
     @ExceptionHandler(EventNotFoundException.class)
     public ProblemDetail notFound(EventNotFoundException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());

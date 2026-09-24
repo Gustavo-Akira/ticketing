@@ -20,6 +20,9 @@ public class EventJpaEntity {
     @Id
     private UUID id;
 
+    @Column(name = "owner_id", updatable = false)
+    private UUID ownerId;
+
     @Column(nullable = false, length = 255)
     private String name;
 
@@ -43,6 +46,7 @@ public class EventJpaEntity {
     static EventJpaEntity fromDomain(Event model) {
         var entity = new EventJpaEntity();
         entity.id = model.getId();
+        entity.ownerId = model.getOwnerId();
         entity.name = model.getName();
         entity.startsAt = model.getStartsAt();
         entity.status = model.getStatus();
@@ -52,6 +56,6 @@ public class EventJpaEntity {
     }
 
     Event toDomain() {
-        return Event.restore(id, name, startsAt, status, createdAt, updatedAt);
+        return Event.restore(id, name, startsAt, status, createdAt, updatedAt, ownerId);
     }
 }

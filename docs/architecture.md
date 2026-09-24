@@ -101,8 +101,19 @@ O token é relido após o bloqueio para detectar consumo concorrente. Reutiliza�
 retorna resultado rejeitado, confirmando revogação antes da resposta HTTP 401.
 
 A entrada CLI `identity create-admin` inicia contexto sem HTTP e sem beans JWT,
-utiliza o mesmo caso de criação de contas e encerra após executar. Propriedade
-de eventos não é avaliada nesta entrega.
+utiliza o mesmo caso de criação de contas e encerra após executar.
+
+Event mantém `ownerId` como UUID sem dependência Java de User. A migration V6
+garante referência a `users` por FK; o mapeamento JPA não permite atualizar o
+proprietário. Controllers extraem o subject do JWT validado e passam o UUID aos
+casos de uso. A política EventOwnership verifica o dono dentro da transação,
+antes de alterações e regras de assentos/status. Spring Security continua
+verificando ORGANIZER. Nenhuma role ignora a propriedade.
+
+Registros legados sem ownerId são somente leitura pela API. Novos eventos exigem
+proprietário na construção; leituras permanecem disponíveis a qualquer usuário
+autenticado. Bloqueio do lote, publicação condicional e versões de assentos são
+preservados.
 
 Não teremos diretórios globais gigantes de `controllers`, `services` e `repositories`.
 

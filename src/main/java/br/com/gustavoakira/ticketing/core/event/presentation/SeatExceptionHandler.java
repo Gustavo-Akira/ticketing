@@ -5,6 +5,7 @@ import br.com.gustavoakira.ticketing.core.event.application.EventNotDraftExcepti
 import br.com.gustavoakira.ticketing.core.event.application.EventNotFoundException;
 import br.com.gustavoakira.ticketing.core.event.application.InvalidSeatConfigurationException;
 import br.com.gustavoakira.ticketing.core.event.application.SeatNotFoundException;
+import br.com.gustavoakira.ticketing.core.event.application.EventAccessDeniedException;
 import br.com.gustavoakira.ticketing.core.event.domain.SeatLocationChangeException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -16,6 +17,11 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 @RestControllerAdvice(assignableTypes = SeatController.class)
 public class SeatExceptionHandler extends ResponseEntityExceptionHandler {
+    @ExceptionHandler(EventAccessDeniedException.class)
+    public ProblemDetail forbidden(EventAccessDeniedException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
+    }
+
     @ExceptionHandler({EventNotFoundException.class, SeatNotFoundException.class})
     public ProblemDetail notFound(RuntimeException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());

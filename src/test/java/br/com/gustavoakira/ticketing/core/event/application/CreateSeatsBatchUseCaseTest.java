@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import static br.com.gustavoakira.ticketing.core.event.support.OrganizerFixture.*;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -36,6 +37,7 @@ class CreateSeatsBatchUseCaseTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(event.getOwnerId()).thenReturn(OWNER);
         useCase = new CreateSeatsBatchUseCase(
                 eventRepository,
                 seatRepository
@@ -64,7 +66,7 @@ class CreateSeatsBatchUseCaseTest {
         when(event.getStatus())
                 .thenReturn(EventStatus.DRAFT);
 
-        useCase.execute(eventId, command);
+        useCase.execute(eventId, command, OWNER);
 
         ArgumentCaptor<List<Seat>> seatsCaptor =
                 ArgumentCaptor.forClass(List.class);
@@ -108,7 +110,7 @@ class CreateSeatsBatchUseCaseTest {
         when(event.getStatus())
                 .thenReturn(EventStatus.DRAFT);
 
-        useCase.execute(eventId, command);
+        useCase.execute(eventId, command, OWNER);
 
         ArgumentCaptor<List<Seat>> seatsCaptor =
                 ArgumentCaptor.forClass(List.class);
@@ -144,7 +146,7 @@ class CreateSeatsBatchUseCaseTest {
 
         EventNotDraftException exception = assertThrows(
                 EventNotDraftException.class,
-                () -> useCase.execute(eventId, command)
+                () -> useCase.execute(eventId, command, OWNER)
         );
 
         assertEquals(
@@ -180,7 +182,7 @@ class CreateSeatsBatchUseCaseTest {
 
         InvalidSeatConfigurationException exception = assertThrows(
                 InvalidSeatConfigurationException.class,
-                () -> useCase.execute(eventId, command)
+                () -> useCase.execute(eventId, command, OWNER)
         );
 
         assertEquals(

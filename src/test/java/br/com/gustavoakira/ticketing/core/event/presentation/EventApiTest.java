@@ -1,5 +1,6 @@
 package br.com.gustavoakira.ticketing.core.event.presentation;
 
+import static br.com.gustavoakira.ticketing.core.event.support.OrganizerFixture.*;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,11 +42,12 @@ class EventApiTest {
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
         jdbc.update("delete from seats");
         jdbc.update("delete from events");
+        br.com.gustavoakira.ticketing.core.event.support.OrganizerFixture.seed(jdbc);
     }
 
     @Test
     void creationReturnsLocationAndPersistsDraftWithDatabaseTimestamps() throws Exception {
-        var response = mvc.perform(post("/events").with(user("editor").roles("ORGANIZER"))
+        var response = mvc.perform(post("/events").with(organizer())
                         .contentType(MediaType.APPLICATION_JSON).content(VALID))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Concert"))
@@ -68,7 +70,7 @@ class EventApiTest {
         UUID id = seed("Before");
         jdbc.update("update events set status = 'AVAILABLE', updated_at = '2000-01-01T00:00:00Z' where id = ?", id);
         var before = jdbc.queryForMap("select * from events where id = ?", id);
-        mvc.perform(put("/events/{id}", id).with(user("editor").roles("ORGANIZER"))
+        mvc.perform(put("/events/{id}", id).with(organizer())
                         .contentType(MediaType.APPLICATION_JSON).content(VALID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.toString()))
@@ -118,7 +120,7 @@ class EventApiTest {
         UUID id = UUID.randomUUID();
         mvc.perform(get("/events/{id}", id).with(user("reader")))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.status").value(404));
-        mvc.perform(put("/events/{id}", id).with(user("editor").roles("ORGANIZER"))
+        mvc.perform(put("/events/{id}", id).with(organizer())
                         .contentType(MediaType.APPLICATION_JSON).content(VALID))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.status").value(404));
         assertThat(jdbc.queryForObject("select count(*) from events", Long.class)).isZero();
@@ -132,10 +134,10 @@ class EventApiTest {
     })
     void invalidBodyReturns400WithoutWriting(String body) throws Exception {
         UUID id = seed("Unchanged");
-        mvc.perform(post("/events").with(user("editor").roles("ORGANIZER"))
+        mvc.perform(post("/events").with(organizer())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.status").value(400));
-        mvc.perform(put("/events/{id}", id).with(user("editor").roles("ORGANIZER"))
+        mvc.perform(put("/events/{id}", id).with(organizer())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.status").value(400));
         assertThat(jdbc.queryForObject("select name from events where id = ?", String.class, id)).isEqualTo("Unchanged");
@@ -145,7 +147,7 @@ class EventApiTest {
     @Test
     void oversizedNameIsRejected() throws Exception {
         String body = VALID.replace("Concert", "a".repeat(256));
-        mvc.perform(post("/events").with(user("editor").roles("ORGANIZER"))
+        mvc.perform(post("/events").with(organizer())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest());
     }
@@ -174,6 +176,7 @@ class EventApiTest {
     private UUID seed(String name) {
         UUID id = UUID.randomUUID();
         jdbc.update("insert into events(id, name, starts_at, status) values (?, ?, '2027-01-01T00:00:00Z', 'DRAFT')", id, name);
+        jdbc.update("update events set owner_id = ? where id = ?", OWNER, id);
         return id;
     }
 
@@ -183,7 +186,7 @@ class EventApiTest {
         seedSeat(id);
         jdbc.update("update events set updated_at = '2000-01-01T00:00:00Z' where id = ?", id);
         var before = jdbc.queryForMap("select * from events where id = ?", id);
-        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor").roles("ORGANIZER")))
+        mvc.perform(patch("/events/{id}/status/available", id).with(organizer()))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
         assertThat(jdbc.queryForObject("select status from events where id = ?", String.class, id))
@@ -204,7 +207,7 @@ class EventApiTest {
         UUID id = seed("Concert");
         seedSeat(id);
         jdbc.update("update events set status = ? where id = ?", eventStatus, id);
-        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor").roles("ORGANIZER")))
+        mvc.perform(patch("/events/{id}/status/available", id).with(organizer()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
         assertThat(jdbc.queryForObject("select status from events where id = ?", String.class, id))
@@ -213,7 +216,7 @@ class EventApiTest {
 
     @Test
     void makingMissingEventAvailableReturns404() throws Exception {
-        mvc.perform(patch("/events/{id}/status/available", UUID.randomUUID()).with(user("editor").roles("ORGANIZER")))
+        mvc.perform(patch("/events/{id}/status/available", UUID.randomUUID()).with(organizer()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
         assertThat(jdbc.queryForObject("select count(*) from events", Long.class)).isZero();
@@ -221,7 +224,7 @@ class EventApiTest {
 
     @Test
     void statusChangeRejectsMalformedId() throws Exception {
-        mvc.perform(patch("/events/not-a-uuid/status/available").with(user("editor").roles("ORGANIZER")))
+        mvc.perform(patch("/events/not-a-uuid/status/available").with(organizer()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
     }
@@ -245,7 +248,7 @@ class EventApiTest {
         }
         var before = jdbc.queryForMap("select * from events where id = ?", id);
 
-        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor").roles("ORGANIZER")))
+        mvc.perform(patch("/events/{id}/status/available", id).with(organizer()))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(jsonPath("$.status").value(409))
@@ -261,7 +264,7 @@ class EventApiTest {
         jdbc.update("update events set status = ? where id = ?", eventStatus, id);
         var before = jdbc.queryForMap("select * from events where id = ?", id);
 
-        mvc.perform(patch("/events/{id}/status/available", id).with(user("editor").roles("ORGANIZER")))
+        mvc.perform(patch("/events/{id}/status/available", id).with(organizer()))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(jsonPath("$.status").value(409))

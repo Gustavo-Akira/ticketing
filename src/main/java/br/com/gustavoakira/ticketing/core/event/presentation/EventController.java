@@ -6,6 +6,8 @@ import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 @RestController
 @RequestMapping("/events")
@@ -26,8 +28,8 @@ public class EventController {
     }
 
     @PostMapping
-    public ResponseEntity<EventResult> create(@RequestBody EventRequest request) {
-        var result = create.execute(request.toDetails());
+    public ResponseEntity<EventResult> create(@RequestBody EventRequest request, @AuthenticationPrincipal Jwt jwt) {
+        var result = create.execute(request.toDetails(), UUID.fromString(jwt.getSubject()));
         return ResponseEntity.created(URI.create("/events/" + result.id())).body(result);
     }
 
@@ -43,13 +45,13 @@ public class EventController {
     }
 
     @PutMapping("/{id}")
-    public EventResult update(@PathVariable UUID id, @RequestBody EventRequest request) {
-        return update.execute(id, request.toDetails());
+    public EventResult update(@PathVariable UUID id, @RequestBody EventRequest request, @AuthenticationPrincipal Jwt jwt) {
+        return update.execute(id, request.toDetails(), UUID.fromString(jwt.getSubject()));
     }
 
     @PatchMapping("/{id}/status/available")
-    public ResponseEntity<Void>  changeStatus(@PathVariable UUID id) {
-        change.execute(id);
+    public ResponseEntity<Void>  changeStatus(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        change.execute(id, UUID.fromString(jwt.getSubject()));
         return ResponseEntity.noContent().build();
     }
 }

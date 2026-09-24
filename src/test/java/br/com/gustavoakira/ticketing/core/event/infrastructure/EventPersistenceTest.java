@@ -5,6 +5,7 @@ import br.com.gustavoakira.ticketing.core.event.port.EventRepository;
 import br.com.gustavoakira.ticketing.core.event.port.SeatRepository;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
+import static br.com.gustavoakira.ticketing.core.event.support.OrganizerFixture.*;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,9 @@ class EventPersistenceTest {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17.6-alpine");
+
+    @org.junit.jupiter.api.BeforeEach
+    void seedOwner() { seed(jdbc); }
 
     @Autowired EventRepository events;
     @Autowired SeatRepository seats;
@@ -66,7 +70,7 @@ class EventPersistenceTest {
     @Test
     void migrationsCreateSchemaAndRepositoriesRoundTripAllFields() {
         assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success", Integer.class)).isPositive();
-        var event = events.save(new Event("Concert", Instant.parse("2027-01-10T20:00:00Z")));
+        var event = events.save(new Event("Concert", Instant.parse("2027-01-10T20:00:00Z"), OWNER));
         var seat = seats.save(new Seat(event.getId(), "Floor", "A", "15", new BigDecimal("120.50"), "BRL"));
         entityManager.clear();
 
@@ -209,7 +213,7 @@ class EventPersistenceTest {
     }
 
     private Event event() {
-        return events.save(new Event("Concert", Instant.parse("2027-01-10T20:00:00Z")));
+        return events.save(new Event("Concert", Instant.parse("2027-01-10T20:00:00Z"), OWNER));
     }
 
     private Seat seat(UUID eventId) {
