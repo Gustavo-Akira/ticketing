@@ -1,6 +1,8 @@
 package br.com.gustavoakira.ticketing.core.event.port;
 
 import br.com.gustavoakira.ticketing.core.event.domain.Seat;
+import br.com.gustavoakira.ticketing.core.event.domain.SeatStatus;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,4 +16,5 @@ public interface SeatRepository {
     PageResult<Seat> findByEventId(UUID eventId, int page, int size);
     Optional<Seat> findByIdAndEventId(UUID id, UUID eventId);
     boolean existsByEventId(UUID eventId);
+    int updateSeatsStatusWithExpectedStatus(List<UUID> seats,UUID eventId,SeatStatus targetStatus, SeatStatus expectedStatus);
 }
