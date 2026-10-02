@@ -65,7 +65,6 @@ class ReservationPersistenceTest {
         assertThat(entity.getCustomerId()).isEqualTo(customerId);
         assertThat(entity.getStatus()).isEqualTo(ReservationStatus.ON_HOLD);
         assertThat(entity.getCreatedAt()).isEqualTo(saved.getCreatedAt());
-        // PostgreSQL timestamps have microsecond precision; Java Instant also holds nanoseconds.
         assertThat(entity.getExpiresAt()).isCloseTo(saved.getExpiresAt(), within(1, ChronoUnit.MICROS));
         assertThat(reloaded.getExpiresAt()).isCloseTo(saved.getExpiresAt(), within(1, ChronoUnit.MICROS));
         assertThat(entity.getSeats()).hasSize(1);
@@ -83,7 +82,6 @@ class ReservationPersistenceTest {
     @Test
     void reservingReleasedSeatPreservesPreviousReservationPriceAndCurrency() {
         var first = createReservation.createReservation(reservation());
-        // Simulate the release performed by a future cancellation/expiration flow.
         jdbc.update("update reservations set status = 'CANCELLED' where id = ?", first.getId());
         jdbc.update("update seats set status = 'AVAILABLE', version = version + 1, price = 150, currency = 'USD' where id = ?", seatId);
         entityManager.clear();
@@ -109,7 +107,7 @@ class ReservationPersistenceTest {
         var saved = createReservation.createReservation(reservation());
 
         assertThatThrownBy(() -> jdbc.update(
-                "insert into reserved_seats(id, reservation_id, seat_id, price) values (?, ?, ?, 100)",
+                "insert into reserved_seats(id, reservation_id, seat_id, price,currency) values (?, ?, ?, 100,'BRL')",
                 UUID.randomUUID(), saved.getId(), seatId))
                 .isInstanceOf(DataIntegrityViolationException.class)
                 .hasMessageContaining("uk_reserved_seats_reservation_seat");
