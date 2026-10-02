@@ -71,6 +71,8 @@ class ReservationPersistenceTest {
         assertThat(entity.getSeats()).hasSize(1);
         assertThat(entity.getSeats().getFirst().getSeatId()).isEqualTo(seatId);
         assertThat(entity.getSeats().getFirst().getPrice()).isEqualByComparingTo("100.00");
+        assertThat(entity.getSeats().getFirst().getCurrency()).isEqualTo("BRL");
+        assertThat(reloaded.getSeats().getFirst().getCurrency()).isEqualTo("BRL");
         var snapshotId = jdbc.queryForObject("select id from reserved_seats where reservation_id = ?", UUID.class, saved.getId());
         assertThat(snapshotId).isNotEqualTo(seatId);
         assertThat(snapshotId.version()).isEqualTo(7);
@@ -79,11 +81,11 @@ class ReservationPersistenceTest {
     }
 
     @Test
-    void reservingReleasedSeatPreservesPreviousReservationAndPrice() {
+    void reservingReleasedSeatPreservesPreviousReservationPriceAndCurrency() {
         var first = createReservation.createReservation(reservation());
         // Simulate the release performed by a future cancellation/expiration flow.
         jdbc.update("update reservations set status = 'CANCELLED' where id = ?", first.getId());
-        jdbc.update("update seats set status = 'AVAILABLE', version = version + 1, price = 150 where id = ?", seatId);
+        jdbc.update("update seats set status = 'AVAILABLE', version = version + 1, price = 150, currency = 'USD' where id = ?", seatId);
         entityManager.clear();
 
         var second = createReservation.createReservation(reservation());
@@ -97,6 +99,8 @@ class ReservationPersistenceTest {
         assertThat(current.getSeats().getFirst().getId()).isEqualTo(seatId);
         assertThat(historical.getSeats().getFirst().getPrice()).isEqualByComparingTo("100.00");
         assertThat(current.getSeats().getFirst().getPrice()).isEqualByComparingTo("150.00");
+        assertThat(historical.getSeats().getFirst().getCurrency()).isEqualTo("BRL");
+        assertThat(current.getSeats().getFirst().getCurrency()).isEqualTo("USD");
         assertThat(jdbc.queryForObject("select count(*) from reserved_seats where seat_id = ?", Integer.class, seatId)).isEqualTo(2);
     }
 

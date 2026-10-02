@@ -16,11 +16,13 @@ class ReservedSeatTest {
 
         var seat = new ReservedSeat(
                 id,
-                price
+                price,
+                "BRL"
         );
 
         assertEquals(id, seat.getId());
         assertEquals(price, seat.getPrice());
+        assertEquals("BRL", seat.getCurrency());
     }
 
     @Test
@@ -29,7 +31,8 @@ class ReservedSeatTest {
                 IllegalArgumentException.class,
                 () -> new ReservedSeat(
                         null,
-                        new BigDecimal("100.00")
+                        new BigDecimal("100.00"),
+                        "BRL"
                 )
         );
 
@@ -42,7 +45,7 @@ class ReservedSeatTest {
     @Test
     void shouldAcceptZeroPrice() {
         var id = UUID.randomUUID();
-        var seat = new ReservedSeat(id, BigDecimal.ZERO);
+        var seat = new ReservedSeat(id, BigDecimal.ZERO, "BRL");
 
         assertEquals(id, seat.getId());
         assertEquals(BigDecimal.ZERO, seat.getPrice());
@@ -54,8 +57,17 @@ class ReservedSeatTest {
                 IllegalArgumentException.class,
                 () -> new ReservedSeat(
                         UUID.randomUUID(),
-                        new BigDecimal("-0.01")
+                        new BigDecimal("-0.01"),
+                        "BRL"
                 )
         );
+    }
+
+    @Test
+    void shouldRejectNullCurrency() {
+        var exception = assertThrows(IllegalArgumentException.class,
+                () -> new ReservedSeat(UUID.randomUUID(), new BigDecimal("100.00"), null));
+
+        assertEquals("Reserved Seat currency cannot be null", exception.getMessage());
     }
 }

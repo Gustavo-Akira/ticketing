@@ -16,6 +16,7 @@ public class JpaReservedSeatEntity {
     @Column(name = "seat_id", nullable = false)
     private UUID seatId;
     private BigDecimal price;
+    private String currency;
 
 
     public JpaReservedSeatEntity() {
@@ -27,11 +28,12 @@ public class JpaReservedSeatEntity {
         entity.setSeatId(domain.getId());
         entity.id = UuidCreator.getTimeOrderedEpoch();
         entity.setPrice(domain.getPrice());
+        entity.setCurrency(domain.getCurrency());
         return entity;
     }
 
     public ReservedSeat toDomain() {
-        return new ReservedSeat(seatId, price);
+        return new ReservedSeat(seatId, price,currency);
     }
 
     public UUID getSeatId() {
@@ -48,5 +50,13 @@ public class JpaReservedSeatEntity {
 
     public void setPrice(BigDecimal price) {
         this.price = price;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 }

@@ -1,6 +1,9 @@
 package br.com.gustavoakira.ticketing.core.reservation.infrastructure;
 
 import br.com.gustavoakira.ticketing.core.reservation.application.CreateReservationUseCase;
+import br.com.gustavoakira.ticketing.core.reservation.application.SeatUnavailableException;
+import br.com.gustavoakira.ticketing.core.reservation.application.EventNotAvailableException;
+import br.com.gustavoakira.ticketing.core.event.domain.EventStatus;
 import br.com.gustavoakira.ticketing.core.reservation.application.CreateReservationCommand;
 import java.util.List;
 import java.util.UUID;
@@ -11,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -54,7 +58,7 @@ class ReservationAtomicityTest {
         jdbc.update("update seats set status = ? where id = ?", unavailableStatus, secondSeat);
         var request = reservation(customerId, List.of(firstSeat, secondSeat));
 
-        assertThatThrownBy(() -> createReservation.createReservation(request)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> createReservation.createReservation(request)).isInstanceOf(SeatUnavailableException.class);
 
         assertSeat(firstSeat, "AVAILABLE", 0L);
         assertSeat(secondSeat, unavailableStatus, 0L);
@@ -68,7 +72,7 @@ class ReservationAtomicityTest {
         jdbc.update("update seats set event_id = ? where id = ?", otherEvent, secondSeat);
         var request = reservation(customerId, List.of(firstSeat, secondSeat));
 
-        assertThatThrownBy(() -> createReservation.createReservation(request)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> createReservation.createReservation(request)).isInstanceOf(SeatUnavailableException.class);
 
         assertSeat(firstSeat, "AVAILABLE", 0L);
         assertSeat(secondSeat, "AVAILABLE", 0L);
@@ -79,7 +83,7 @@ class ReservationAtomicityTest {
     void missingSeatRollsBackExistingSeats() {
         var request = reservation(customerId, List.of(firstSeat, UUID.randomUUID()));
 
-        assertThatThrownBy(() -> createReservation.createReservation(request)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> createReservation.createReservation(request)).isInstanceOf(SeatUnavailableException.class);
 
         assertSeat(firstSeat, "AVAILABLE", 0L);
         assertNoReservation(request);
@@ -119,12 +123,26 @@ class ReservationAtomicityTest {
         assertThat(jdbc.queryForObject("select count(distinct reservation_id) from reserved_seats where seat_id in (?, ?)", Integer.class, firstSeat, secondSeat)).isEqualTo(1);
     }
 
+    @ParameterizedTest
+    @EnumSource(value = EventStatus.class, names = "AVAILABLE", mode = EnumSource.Mode.EXCLUDE)
+    void unavailableEventLeavesSeatsAndReservationsUnchanged(EventStatus status) {
+        jdbc.update("update events set status = ? where id = ?", status.name(), eventId);
+        var request = reservation(customerId, List.of(firstSeat, secondSeat));
+
+        assertThatThrownBy(() -> createReservation.createReservation(request))
+                .isInstanceOf(EventNotAvailableException.class);
+
+        assertSeat(firstSeat, "AVAILABLE", 0L);
+        assertSeat(secondSeat, "AVAILABLE", 0L);
+        assertNoReservation(request);
+    }
+
     private boolean attempt(CreateReservationCommand request, CyclicBarrier start) throws Exception {
         start.await(10, TimeUnit.SECONDS);
         try {
             createReservation.createReservation(request);
             return true;
-        } catch (IllegalStateException conflict) {
+        } catch (SeatUnavailableException conflict) {
             assertThat(conflict).hasMessage("Cannot create reservation one of seats is already taken");
             return false;
         }

@@ -6,8 +6,9 @@ import java.util.UUID;
 public class ReservedSeat {
     private UUID id;
     private BigDecimal price;
+    private String currency;
 
-    public ReservedSeat(UUID id, BigDecimal price) {
+    public ReservedSeat(UUID id, BigDecimal price, String currency) {
         if(id == null){
             throw new IllegalArgumentException("Reserved Seat ID cannot be null");
         }
@@ -16,6 +17,10 @@ public class ReservedSeat {
             throw new IllegalArgumentException("Price must be greater than zero");
         }
         this.price = price;
+        if(currency == null){
+            throw new IllegalArgumentException("Reserved Seat currency cannot be null");
+        }
+        this.currency = currency;
     }
 
     public UUID getId() {
@@ -23,5 +28,9 @@ public class ReservedSeat {
     }
     public BigDecimal getPrice() {
         return price;
+    }
+
+    public String getCurrency() {
+        return currency;
     }
 }
