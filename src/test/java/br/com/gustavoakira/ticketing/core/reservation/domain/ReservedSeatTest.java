@@ -40,19 +40,12 @@ class ReservedSeatTest {
     }
 
     @Test
-    void shouldRejectZeroPrice() {
-        var exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> new ReservedSeat(
-                        UUID.randomUUID(),
-                        BigDecimal.ZERO
-                )
-        );
+    void shouldAcceptZeroPrice() {
+        var id = UUID.randomUUID();
+        var seat = new ReservedSeat(id, BigDecimal.ZERO);
 
-        assertEquals(
-                "Price must be greater than zero",
-                exception.getMessage()
-        );
+        assertEquals(id, seat.getId());
+        assertEquals(BigDecimal.ZERO, seat.getPrice());
     }
 
     @Test

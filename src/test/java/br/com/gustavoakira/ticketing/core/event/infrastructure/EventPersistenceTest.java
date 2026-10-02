@@ -7,6 +7,7 @@ import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import static br.com.gustavoakira.ticketing.core.event.support.OrganizerFixture.*;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -210,6 +211,38 @@ class EventPersistenceTest {
         var event = event();
         assertThatThrownBy(() -> jdbc.update("update events set " + assignment + " where id = ?", event.getId()))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void findAllByIdsReturnsOnlyRequestedSeatsWithTheirPersistedFields() {
+        var first = seats.save(seat(event().getId()));
+        var second = seats.save(new Seat(event().getId(), "Balcony", "B", "2", new BigDecimal("75.00"), "USD"));
+        seats.save(seat(event().getId()));
+        jdbc.update("update seats set status = 'RESERVED', version = 1 where id = ?", second.getId());
+        entityManager.clear();
+
+        var found = seats.findAllByIds(List.of(second.getId(), UUID.randomUUID(), first.getId()));
+
+        assertThat(found).extracting(Seat::getId).containsExactlyInAnyOrder(first.getId(), second.getId());
+        assertThat(found).filteredOn(s -> s.getId().equals(second.getId())).singleElement().satisfies(s -> {
+            assertThat(s.getEventId()).isEqualTo(second.getEventId());
+            assertThat(s.getSection()).isEqualTo("Balcony");
+            assertThat(s.getRow()).isEqualTo("B");
+            assertThat(s.getNumber()).isEqualTo("2");
+            assertThat(s.getPrice()).isEqualByComparingTo("75.00");
+            assertThat(s.getCurrency()).isEqualTo("USD");
+            assertThat(s.getStatus()).isEqualTo(SeatStatus.RESERVED);
+            assertThat(s.getVersion()).isEqualTo(1L);
+        });
+    }
+
+    @Test
+    void findAllByIdsReturnsEmptyForEmptyOrMissingIds() {
+        seats.save(seat(event().getId()));
+        entityManager.clear();
+
+        assertThat(seats.findAllByIds(List.of())).isEmpty();
+        assertThat(seats.findAllByIds(List.of(UUID.randomUUID()))).isEmpty();
     }
 
     private Event event() {

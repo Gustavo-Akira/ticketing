@@ -1,10 +1,7 @@
 package br.com.gustavoakira.ticketing.core.reservation.infrastructure;
 
 import br.com.gustavoakira.ticketing.core.reservation.application.CreateReservationUseCase;
-import br.com.gustavoakira.ticketing.core.reservation.domain.Reservation;
-import br.com.gustavoakira.ticketing.core.reservation.domain.ReservedSeat;
-import java.math.BigDecimal;
-import java.time.Instant;
+import br.com.gustavoakira.ticketing.core.reservation.application.CreateReservationCommand;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CyclicBarrier;
@@ -122,7 +119,7 @@ class ReservationAtomicityTest {
         assertThat(jdbc.queryForObject("select count(distinct reservation_id) from reserved_seats where seat_id in (?, ?)", Integer.class, firstSeat, secondSeat)).isEqualTo(1);
     }
 
-    private boolean attempt(Reservation request, CyclicBarrier start) throws Exception {
+    private boolean attempt(CreateReservationCommand request, CyclicBarrier start) throws Exception {
         start.await(10, TimeUnit.SECONDS);
         try {
             createReservation.createReservation(request);
@@ -133,9 +130,8 @@ class ReservationAtomicityTest {
         }
     }
 
-    private Reservation reservation(UUID customer, List<UUID> ids) {
-        return new Reservation(eventId, customer,
-                ids.stream().map(id -> new ReservedSeat(id, new BigDecimal("100.00"))).toList(), Instant.now());
+    private CreateReservationCommand reservation(UUID customer, List<UUID> ids) {
+        return new CreateReservationCommand(eventId, customer, ids);
     }
 
     private void insertSeat(UUID id, UUID event, String number) {
@@ -148,8 +144,9 @@ class ReservationAtomicityTest {
         assertThat(((Number) row.get("version")).longValue()).isEqualTo(version);
     }
 
-    private void assertNoReservation(Reservation request) {
-        assertThat(jdbc.queryForObject("select count(*) from reservations where id = ?", Integer.class, request.getId())).isZero();
-        assertThat(jdbc.queryForObject("select count(*) from reserved_seats where reservation_id = ?", Integer.class, request.getId())).isZero();
+    private void assertNoReservation(CreateReservationCommand request) {
+        assertThat(jdbc.queryForObject("select count(*) from reservations where event_id = ?", Integer.class, request.eventId())).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from reserved_seats where seat_id in (?, ?)",
+                Integer.class, firstSeat, secondSeat)).isZero();
     }
 }

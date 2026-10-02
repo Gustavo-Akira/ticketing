@@ -57,6 +57,11 @@ public class JpaSeatRepository implements SeatRepository {
     }
 
     @Override
+    public List<Seat> findAllByIds(List<UUID> ids) {
+        return seats.findAllById(ids).stream().map(SeatJpaEntity::toDomain).toList();
+    }
+
+    @Override
     public int updateSeatsStatusWithExpectedStatus(List<UUID> seatsIds,UUID eventId,SeatStatus targetStatus, SeatStatus expectedStatus) {
         return seats.updateSeatsStatusWithExpectedStatus(seatsIds,eventId,targetStatus.name(),expectedStatus.name());
     }

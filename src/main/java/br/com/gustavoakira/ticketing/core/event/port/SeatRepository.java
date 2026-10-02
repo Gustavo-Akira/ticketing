@@ -16,5 +16,6 @@ public interface SeatRepository {
     PageResult<Seat> findByEventId(UUID eventId, int page, int size);
     Optional<Seat> findByIdAndEventId(UUID id, UUID eventId);
     boolean existsByEventId(UUID eventId);
+    List<Seat> findAllByIds(List<UUID> ids);
     int updateSeatsStatusWithExpectedStatus(List<UUID> seats,UUID eventId,SeatStatus targetStatus, SeatStatus expectedStatus);
 }

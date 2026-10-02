@@ -1,5 +1,6 @@
 package br.com.gustavoakira.ticketing.core.reservation.application;
 
+import br.com.gustavoakira.ticketing.core.event.domain.Seat;
 import br.com.gustavoakira.ticketing.core.event.domain.SeatStatus;
 import br.com.gustavoakira.ticketing.core.event.port.SeatRepository;
 import br.com.gustavoakira.ticketing.core.reservation.domain.Reservation;
@@ -8,6 +9,7 @@ import br.com.gustavoakira.ticketing.core.reservation.port.ReservationRepository
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 @Service
@@ -19,13 +21,15 @@ public class CreateReservationUseCase {
         this.reservationRepository = reservationRepository;
     }
     @Transactional(rollbackFor = Exception.class)
-    public Reservation createReservation(Reservation reservation){
-        List<UUID> seatsIds = reservation.getSeats().stream().map(ReservedSeat::getId).toList();
-        int modified = seatRepository.updateSeatsStatusWithExpectedStatus(seatsIds, reservation.getEventId(),SeatStatus.RESERVED, SeatStatus.AVAILABLE);
-        if(modified != seatsIds.size()){
+    public Reservation createReservation(CreateReservationCommand reservationCommand){
+        int modified = seatRepository.updateSeatsStatusWithExpectedStatus(reservationCommand.seatIds(), reservationCommand.eventId(),SeatStatus.RESERVED, SeatStatus.AVAILABLE);
+        if(modified != reservationCommand.seatIds().size()){
             throw new IllegalStateException("Cannot create reservation one of seats is already taken");
         }
-
+        List<ReservedSeat> reservedSeats =seatRepository.findAllByIds(reservationCommand.seatIds()).stream().map(
+                seat->new ReservedSeat(seat.getId(),seat.getPrice())
+        ).toList();
+        Reservation reservation = new Reservation(reservationCommand.eventId(),reservationCommand.customerId(),reservedSeats, Instant.now());
         return reservationRepository.createReservation(reservation);
     }
 }

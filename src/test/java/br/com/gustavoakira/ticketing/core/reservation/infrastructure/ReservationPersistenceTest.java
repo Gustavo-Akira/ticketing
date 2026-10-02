@@ -1,12 +1,10 @@
 package br.com.gustavoakira.ticketing.core.reservation.infrastructure;
 
 import br.com.gustavoakira.ticketing.core.reservation.application.CreateReservationUseCase;
-import br.com.gustavoakira.ticketing.core.reservation.domain.Reservation;
-import br.com.gustavoakira.ticketing.core.reservation.domain.ReservedSeat;
+import br.com.gustavoakira.ticketing.core.reservation.application.CreateReservationCommand;
+import br.com.gustavoakira.ticketing.core.reservation.domain.ReservationStatus;
 import br.com.gustavoakira.ticketing.core.reservation.infraestructure.persistence.SpringDataJpaReservationRepository;
 import jakarta.persistence.EntityManager;
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -56,20 +54,20 @@ class ReservationPersistenceTest {
 
     @Test
     void persistsReservationFieldsAndGeneratesVersionSevenSeatIdentity() {
-        var request = reservation("100.00");
+        var request = reservation();
         var saved = createReservation.createReservation(request);
         entityManager.clear();
 
         var entity = reservations.findById(saved.getId()).orElseThrow();
         var reloaded = entity.toDomain();
-        assertThat(entity.getId()).isEqualTo(request.getId());
+        assertThat(entity.getId()).isEqualTo(saved.getId());
         assertThat(entity.getEventId()).isEqualTo(eventId);
         assertThat(entity.getCustomerId()).isEqualTo(customerId);
-        assertThat(entity.getStatus()).isEqualTo(request.getStatus());
+        assertThat(entity.getStatus()).isEqualTo(ReservationStatus.ON_HOLD);
         assertThat(entity.getCreatedAt()).isEqualTo(saved.getCreatedAt());
         // PostgreSQL timestamps have microsecond precision; Java Instant also holds nanoseconds.
         assertThat(entity.getExpiresAt()).isCloseTo(saved.getExpiresAt(), within(1, ChronoUnit.MICROS));
-        assertThat(reloaded.getExpiresAt()).isCloseTo(request.getExpiresAt(), within(1, ChronoUnit.MICROS));
+        assertThat(reloaded.getExpiresAt()).isCloseTo(saved.getExpiresAt(), within(1, ChronoUnit.MICROS));
         assertThat(entity.getSeats()).hasSize(1);
         assertThat(entity.getSeats().getFirst().getSeatId()).isEqualTo(seatId);
         assertThat(entity.getSeats().getFirst().getPrice()).isEqualByComparingTo("100.00");
@@ -82,13 +80,13 @@ class ReservationPersistenceTest {
 
     @Test
     void reservingReleasedSeatPreservesPreviousReservationAndPrice() {
-        var first = createReservation.createReservation(reservation("100.00"));
+        var first = createReservation.createReservation(reservation());
         // Simulate the release performed by a future cancellation/expiration flow.
         jdbc.update("update reservations set status = 'CANCELLED' where id = ?", first.getId());
         jdbc.update("update seats set status = 'AVAILABLE', version = version + 1, price = 150 where id = ?", seatId);
         entityManager.clear();
 
-        var second = createReservation.createReservation(reservation("150.00"));
+        var second = createReservation.createReservation(reservation());
         entityManager.clear();
 
         var historical = reservations.findById(first.getId()).orElseThrow().toDomain();
@@ -104,7 +102,7 @@ class ReservationPersistenceTest {
 
     @Test
     void databaseRejectsDuplicateSeatWithinSameReservation() {
-        var saved = createReservation.createReservation(reservation("100.00"));
+        var saved = createReservation.createReservation(reservation());
 
         assertThatThrownBy(() -> jdbc.update(
                 "insert into reserved_seats(id, reservation_id, seat_id, price) values (?, ?, ?, 100)",
@@ -113,8 +111,7 @@ class ReservationPersistenceTest {
                 .hasMessageContaining("uk_reserved_seats_reservation_seat");
     }
 
-    private Reservation reservation(String price) {
-        return new Reservation(eventId, customerId,
-                List.of(new ReservedSeat(seatId, new BigDecimal(price))), Instant.now());
+    private CreateReservationCommand reservation() {
+        return new CreateReservationCommand(eventId, customerId, List.of(seatId));
     }
 }
