@@ -63,8 +63,8 @@ class ReservationTest {
         UUID seatId = UUID.randomUUID();
 
         var seats = List.of(
-                new ReservedSeat(seatId, new BigDecimal("100.00")),
-                new ReservedSeat(seatId, new BigDecimal("100.00"))
+                new ReservedSeat(seatId, new BigDecimal("100.00"), "BRL"),
+                new ReservedSeat(seatId, new BigDecimal("100.00"), "BRL")
         );
 
         var exception = assertThrows(
@@ -401,7 +401,8 @@ class ReservationTest {
     private ReservedSeat seat(BigDecimal price) {
         return new ReservedSeat(
                 UUID.randomUUID(),
-                price
+                price,
+                "BRL"
         );
     }
 }

@@ -1,6 +1,7 @@
 package br.com.gustavoakira.ticketing.core.event.infrastructure.persistence;
 
 import br.com.gustavoakira.ticketing.core.event.domain.Seat;
+import br.com.gustavoakira.ticketing.core.event.domain.SeatStatus;
 import br.com.gustavoakira.ticketing.core.event.port.PageResult;
 import br.com.gustavoakira.ticketing.core.event.port.SeatRepository;
 import java.util.List;
@@ -53,5 +54,15 @@ public class JpaSeatRepository implements SeatRepository {
     @Override
     public boolean existsByEventId(UUID eventId) {
         return seats.existsAvailableSeatByEventId(eventId);
+    }
+
+    @Override
+    public List<Seat> findAllByIds(List<UUID> ids) {
+        return seats.findAllById(ids).stream().map(SeatJpaEntity::toDomain).toList();
+    }
+
+    @Override
+    public int updateSeatsStatusWithExpectedStatus(List<UUID> seatsIds,UUID eventId,SeatStatus targetStatus, SeatStatus expectedStatus) {
+        return seats.updateSeatsStatusWithExpectedStatus(seatsIds,eventId,targetStatus.name(),expectedStatus.name());
     }
 }
