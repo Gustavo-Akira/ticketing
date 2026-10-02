@@ -26,7 +26,7 @@ public class CreateReservationUseCase {
     @Transactional(rollbackFor = Exception.class)
     public Reservation createReservation(CreateReservationCommand reservationCommand){
 
-        if(eventRepository.findById(reservationCommand.eventId()).orElseThrow().getStatus() != EventStatus.AVAILABLE){
+        if(eventRepository.findById(reservationCommand.eventId()).orElseThrow(()-> new EventNotFoundException("Event" + reservationCommand.eventId() + " not found")).getStatus() != EventStatus.AVAILABLE){
             throw new EventNotAvailableException("Event "+reservationCommand.eventId()+" is not available");
         }
         int modified = seatRepository.updateSeatsStatusWithExpectedStatus(reservationCommand.seatIds(), reservationCommand.eventId(),SeatStatus.RESERVED, SeatStatus.AVAILABLE);

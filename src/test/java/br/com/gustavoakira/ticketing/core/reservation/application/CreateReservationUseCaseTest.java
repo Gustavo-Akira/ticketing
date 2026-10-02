@@ -14,7 +14,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -113,7 +112,9 @@ class CreateReservationUseCaseTest {
     void rejectsMissingEventBeforeAcquiringSeats() {
         when(eventRepository.findById(request.eventId())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> useCase.createReservation(request)).isInstanceOf(NoSuchElementException.class);
+        assertThatThrownBy(() -> useCase.createReservation(request))
+                .isInstanceOf(EventNotFoundException.class)
+                .hasMessageContaining(request.eventId().toString());
 
         verifyNoInteractions(seats, reservations);
     }
