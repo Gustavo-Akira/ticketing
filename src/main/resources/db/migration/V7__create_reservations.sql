@@ -15,7 +15,7 @@ CREATE TABLE reserved_seats (
     id UUID PRIMARY KEY,
     seat_id UUID NOT NULL REFERENCES seats(id),
     price NUMERIC(38, 2),
-    currency VARCHAR(4),
+    currency VARCHAR(4) NOT NULL,
     reservation_id UUID NOT NULL REFERENCES reservations(id),
     CONSTRAINT uk_reserved_seats_reservation_seat UNIQUE (reservation_id, seat_id)
 );
