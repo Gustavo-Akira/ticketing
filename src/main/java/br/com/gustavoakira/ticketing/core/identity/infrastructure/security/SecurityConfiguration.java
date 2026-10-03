@@ -26,6 +26,7 @@ public class SecurityConfiguration {
                     .requestMatchers(HttpMethod.POST, "/events", "/events/{eventId}/seats/create-seats").hasRole("ORGANIZER")
                     .requestMatchers(HttpMethod.PUT, "/events/{id}", "/events/{eventId}/seats/{id}").hasRole("ORGANIZER")
                     .requestMatchers(HttpMethod.PATCH, "/events/{id}/status/available").hasRole("ORGANIZER")
+                        .requestMatchers(HttpMethod.POST,"/v1/reservations").hasRole("CUSTOMER")
                     .anyRequest().denyAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint(problems).accessDeniedHandler(problems))
                 .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(converter))
