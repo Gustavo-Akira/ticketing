@@ -1,0 +1,744 @@
+{
+  "info": {
+    "name": "Ticketing Core",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "API Ticketing Core. Configure as variáveis da coleção: baseUrl, name, email, password, adminEmail e adminPassword. Crie previamente o ADMIN via CLI (README do projeto). Execute as pastas na ordem: cadastro/login, concessão de ORGANIZER, renovação do JWT, eventos, assentos, publicação, reserva e logout. O usuário cadastrado mantém CUSTOMER e recebe ORGANIZER. Todos os tokens e IDs são capturados nas variáveis da coleção; não crie variáveis homônimas em environments. Cada execução completa cria dados; use um e-mail novo para repetir. Para contas existentes, pule o cadastro e preencha userId se precisar conceder ORGANIZER. Não exporte tokens ou senhas preenchidos."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "name",
+      "value": "Cliente Postman",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "cliente.postman@example.com",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@example.com",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminAccessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminRefreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "eventId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "seatId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "seatVersion",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "seatSection",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "seatRow",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "seatNumber",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reservationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "page",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "size",
+      "value": "20",
+      "type": "string"
+    },
+    {
+      "key": "startsAt",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Cadastro e login",
+      "item": [
+        {
+          "name": "Cadastrar CUSTOMER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/register",
+            "description": "Preencha password com 12 a 64 caracteres (até 72 bytes UTF-8). E-mail deve ser novo. Cadastro não inicia sessão.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{name}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "pm.collectionVariables.set(\"userId\", pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Login do usuário",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const data = pm.response.json();\npm.expect(data.accessToken).to.be.a(\"string\").and.not.empty;\npm.expect(data.refreshToken).to.be.a(\"string\").and.not.empty;\npm.collectionVariables.set(\"accessToken\", data.accessToken);\npm.collectionVariables.set(\"refreshToken\", data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Permissão de organizador",
+      "item": [
+        {
+          "name": "Login ADMIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "ADMIN deve existir via CLI; os tokens são separados da sessão do usuário.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const data = pm.response.json();\npm.expect(data.accessToken).to.be.a(\"string\").and.not.empty;\npm.expect(data.refreshToken).to.be.a(\"string\").and.not.empty;\npm.collectionVariables.set(\"adminAccessToken\", data.accessToken);\npm.collectionVariables.set(\"adminRefreshToken\", data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Conceder ORGANIZER ao usuário",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{userId}}/roles/organizer",
+            "description": "Preserva CUSTOMER. userId vem do cadastro; para conta existente, preencha manualmente.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Renovar JWT do usuário",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/refresh",
+            "description": "Execute depois da concessão para obter ORGANIZER no JWT. A rotação substitui ambos os tokens. Não reutilize o refresh anterior.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const data = pm.response.json();\npm.expect(data.accessToken).to.be.a(\"string\").and.not.empty;\npm.expect(data.refreshToken).to.be.a(\"string\").and.not.empty;\npm.collectionVariables.set(\"accessToken\", data.accessToken);\npm.collectionVariables.set(\"refreshToken\", data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Eventos",
+      "item": [
+        {
+          "name": "Criar evento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/events",
+            "description": "Exige ORGANIZER. O usuário autenticado será o proprietário.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Evento Postman\",\n  \"startsAt\": \"{{startsAt}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"startsAt\")) {",
+                  "  pm.collectionVariables.set(\"startsAt\", new Date(Date.now() + 30 * 86400000).toISOString());",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "pm.collectionVariables.set(\"eventId\", pm.response.json().id);\n[\"seatId\", \"seatSection\", \"seatRow\", \"seatNumber\", \"reservationId\"].forEach(key => pm.collectionVariables.set(key, \"\"));\npm.collectionVariables.set(\"seatVersion\", \"0\");",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Listar eventos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events?page={{page}}&size={{size}}",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar evento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Atualizar evento",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/events/{{eventId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Evento Postman atualizado\",\n  \"startsAt\": \"{{startsAt}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Assentos",
+      "item": [
+        {
+          "name": "Criar assentos em lote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/events/{{eventId}}/seats/create-seats",
+            "description": "Execute em evento DRAFT, antes de publicar. Exige proprietário com ORGANIZER.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sections\": [\n    {\n      \"name\": \"Pista\",\n      \"rowCount\": 2,\n      \"seatPerRow\": 5,\n      \"price\": 120.5,\n      \"currency\": \"BRL\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Listar assentos e selecionar o primeiro",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/seats?page={{page}}&size={{size}}",
+            "description": "Salva o primeiro assento da página, sua localização e versão. Mantenha page=0 no fluxo inicial."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const seats = pm.response.json().content;\npm.test(\"Página contém assentos\", function () { pm.expect(seats).to.be.an(\"array\").that.is.not.empty; });\nconst seat = seats[0];\nif (seat) {\n  pm.collectionVariables.set(\"seatId\", seat.id);\n  pm.collectionVariables.set(\"seatVersion\", String(seat.version));\n  pm.collectionVariables.set(\"seatSection\", seat.section);\n  pm.collectionVariables.set(\"seatRow\", seat.row);\n  pm.collectionVariables.set(\"seatNumber\", seat.number);\n}",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar assento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/seats/{{seatId}}",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const seat = pm.response.json();\nif (seat) {\n  pm.collectionVariables.set(\"seatId\", seat.id);\n  pm.collectionVariables.set(\"seatVersion\", String(seat.version));\n  pm.collectionVariables.set(\"seatSection\", seat.section);\n  pm.collectionVariables.set(\"seatRow\", seat.row);\n  pm.collectionVariables.set(\"seatNumber\", seat.number);\n}",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Atualizar preço do assento",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/events/{{eventId}}/seats/{{seatId}}",
+            "description": "Preserva a localização lida. expectedVersion é um número JSON. Em 409, consulte novamente e revise a edição antes de reenviar.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"section\": \"{{seatSection}}\",\n  \"row\": \"{{seatRow}}\",\n  \"number\": \"{{seatNumber}}\",\n  \"price\": 150,\n  \"currency\": \"BRL\",\n  \"expectedVersion\": {{seatVersion}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const seat = pm.response.json();\nif (seat) {\n  pm.collectionVariables.set(\"seatId\", seat.id);\n  pm.collectionVariables.set(\"seatVersion\", String(seat.version));\n  pm.collectionVariables.set(\"seatSection\", seat.section);\n  pm.collectionVariables.set(\"seatRow\", seat.row);\n  pm.collectionVariables.set(\"seatNumber\", seat.number);\n}",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Publicação",
+      "item": [
+        {
+          "name": "Publicar evento",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/status/available",
+            "description": "Exige proprietário com ORGANIZER, evento DRAFT e pelo menos um assento. Execute após criar os assentos."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 - Reservas",
+      "item": [
+        {
+          "name": "Reservar assento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/reservations",
+            "description": "Exige CUSTOMER e evento AVAILABLE. customerId vem do JWT. Pode adicionar outros IDs a seatIds. Repetir para assento indisponível retorna 409. Não há endpoint GET de reserva implementado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"seatIds\": [\n    \"{{seatId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "pm.collectionVariables.set(\"reservationId\", pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07 - Encerrar sessões",
+      "item": [
+        {
+          "name": "Logout do usuário",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/logout",
+            "description": "Revoga a sessão de refresh; JWTs emitidos permanecem válidos até expirar. Os tokens locais são limpos.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });",
+                  "if (pm.response.code === 204) {",
+                  "pm.collectionVariables.set(\"accessToken\", \"\");\npm.collectionVariables.set(\"refreshToken\", \"\");",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Logout ADMIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/logout",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{adminRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });",
+                  "if (pm.response.code === 204) {",
+                  "pm.collectionVariables.set(\"adminAccessToken\", \"\");\npm.collectionVariables.set(\"adminRefreshToken\", \"\");",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ]
+}
