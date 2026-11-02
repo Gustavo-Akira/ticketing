@@ -10,5 +10,6 @@ public interface PaymentRepository {
     Payment savePayment(Payment payment);
     Optional<Payment> findPaymentById(UUID id);
     List<Payment> findAllPaymentsByReservationId(UUID reservationId);
+    Optional<Payment> findPaymentByIdempotencyKeyAndReservationId(String idempotencyKey, UUID reservationId);
     Payment updatePayment(Payment payment);
 }
