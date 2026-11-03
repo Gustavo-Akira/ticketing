@@ -33,6 +33,11 @@ public class JpaPaymentRepository implements PaymentRepository {
     }
 
     @Override
+    public Optional<Payment> findPaymentByIdempotencyKeyAndReservationId(String idempotencyKey, UUID reservationId) {
+        return springDataJpaPaymentRepository.findByIdempotencyKeyAndReservationId(idempotencyKey,reservationId).map(JpaPaymentEntity::toDomain);
+    }
+
+    @Override
     public Payment updatePayment(Payment payment) {
         return springDataJpaPaymentRepository.save(JpaPaymentEntity.fromDomain(payment)).toDomain();
     }

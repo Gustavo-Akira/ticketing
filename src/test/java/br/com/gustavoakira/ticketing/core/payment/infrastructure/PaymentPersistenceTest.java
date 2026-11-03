@@ -222,6 +222,24 @@ class PaymentPersistenceTest {
                 .usingRecursiveComparison().isEqualTo(second);
     }
 
+    @Test
+    void idempotencyLookupRequiresBothKeyAndReservation() {
+        var first = payments.savePayment(payment("shared", "123.45", "BRL"));
+        payments.savePayment(payment("other", "200.00", "BRL"));
+        var firstReservationId = reservationId;
+        seedReservation();
+        var second = payments.savePayment(payment("shared", "50.00", "USD"));
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(payments.findPaymentByIdempotencyKeyAndReservationId("shared", firstReservationId))
+                .get().usingRecursiveComparison().isEqualTo(first);
+        assertThat(payments.findPaymentByIdempotencyKeyAndReservationId("shared", reservationId))
+                .get().usingRecursiveComparison().isEqualTo(second);
+        assertThat(payments.findPaymentByIdempotencyKeyAndReservationId("missing", firstReservationId)).isEmpty();
+        assertThat(payments.findPaymentByIdempotencyKeyAndReservationId("shared", UUID.randomUUID())).isEmpty();
+    }
+
     private Payment payment(String key, String amount, String currency) {
         return new Payment(new ReservationSnapshot(reservationId, new BigDecimal(amount), customerId, currency),
                 PaymentType.CREDIT, key, Instant.parse("2026-10-11T12:00:00Z"));
